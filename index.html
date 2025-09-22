@@ -544,7 +544,7 @@
                             showApp();
                         } else {
                             await auth.signOut();
-                            showError('Account Error', 'User data not found. Please contact administrator.');
+                            showMessage('Account Error: User data not found. Please contact administrator.', 'error');
                         }
                     } catch (error) {
                         console.error('Error getting user data:', error);
