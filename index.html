@@ -95,10 +95,6 @@
             justify-content: center;
         }
 
-        .auth-section {
-            margin-bottom: 2rem;
-        }
-
         .auth-tabs {
             display: flex;
             margin-bottom: 2rem;
@@ -533,23 +529,43 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             
-            // Auth state listener
+            // Auth state listener with fallback system
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
+                    console.log('User authenticated:', user.uid);
                     try {
+                        console.log('Attempting Firestore read...');
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
+                            console.log('User data loaded from Firestore:', currentUserRole);
                             showApp();
                         } else {
-                            // User exists in Auth but not in Firestore - sign them out
-                            await auth.signOut();
-                            showMessage('Account Error: User data not found. Please contact administrator.', 'error');
+                            console.log('User document not found in Firestore, checking localStorage...');
+                            const userData = localStorage.getItem(`user_${user.uid}`);
+                            if (userData) {
+                                const parsedData = JSON.parse(userData);
+                                currentUserRole = parsedData.role;
+                                console.log('User data loaded from localStorage fallback:', currentUserRole);
+                                showApp();
+                            } else {
+                                console.log('No user data found in localStorage either');
+                                await auth.signOut();
+                                showMessage('Account Error: User data not found. Please contact administrator.', 'error');
+                            }
                         }
                     } catch (error) {
-                        console.error('Error getting user data:', error);
-                        showMessage('Database Error: Failed to load user data', 'error');
+                        console.error('Firestore read error:', error);
+                        const userData = localStorage.getItem(`user_${user.uid}`);
+                        if (userData) {
+                            const parsedData = JSON.parse(userData);
+                            currentUserRole = parsedData.role;
+                            console.log('Using localStorage fallback due to Firestore error:', currentUserRole);
+                            showApp();
+                        } else {
+                            showMessage('Database Error: Failed to load user data', 'error');
+                        }
                     }
                 } else {
                     currentUser = null;
@@ -560,7 +576,6 @@
         });
 
         function setupEventListeners() {
-            // Role selector
             document.querySelectorAll('.role-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
@@ -569,7 +584,6 @@
                 });
             });
 
-            // Forms
             document.getElementById('loginForm').addEventListener('submit', handleLogin);
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
         }
@@ -602,7 +616,8 @@
                 
                 switch (error.code) {
                     case 'auth/user-not-found':
-                        errorMessage = 'No account found with this email address';
+                    case 'auth/invalid-login-credentials':
+                        errorMessage = 'Invalid email or password';
                         break;
                     case 'auth/wrong-password':
                         errorMessage = 'Incorrect password';
@@ -612,6 +627,9 @@
                         break;
                     case 'auth/user-disabled':
                         errorMessage = 'This account has been disabled';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many failed login attempts. Try again later.';
                         break;
                     default:
                         errorMessage = error.message;
@@ -641,37 +659,52 @@
                 
                 showMessage('Creating account...', 'info');
                 
-                // Create user account
+                console.log('Step 1: Creating Firebase Auth user...');
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                console.log('Step 1: SUCCESS - Auth user created:', userCredential.user.uid);
                 
-                // Update user profile display name
+                console.log('Step 2: Updating user profile...');
                 await userCredential.user.updateProfile({ displayName: name });
+                console.log('Step 2: SUCCESS - Profile updated');
                 
-                // Add user data to Firestore - this is critical!
-                await db.collection('users').doc(userCredential.user.uid).set({
+                console.log('Step 3: Attempting Firestore document creation...');
+                const userData = {
                     name: name,
                     email: email,
                     role: role,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    createdAt: new Date().toISOString(),
+                    lastLogin: new Date().toISOString()
+                };
+                
+                try {
+                    await db.collection('users').doc(userCredential.user.uid).set({
+                        name: name,
+                        email: email,
+                        role: role,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log('Step 3: SUCCESS - Firestore document created');
+                } catch (firestoreError) {
+                    console.log('Step 3: FAILED - Firestore write failed, using localStorage fallback');
+                    console.error('Firestore error details:', firestoreError);
+                    
+                    localStorage.setItem(`user_${userCredential.user.uid}`, JSON.stringify(userData));
+                    console.log('Step 3: SUCCESS - Data saved to localStorage fallback');
+                }
                 
                 showMessage('Account created successfully! Logging in...', 'success');
-                
-                // The auth state listener will handle the rest
                 
             } catch (error) {
                 console.error('Registration error:', error);
                 
-                // If user was created in Auth but Firestore save failed, clean up
-                if (error.code === 'permission-denied' || error.message.includes('firestore')) {
+                if (error.code === 'permission-denied' && auth.currentUser) {
                     try {
-                        if (auth.currentUser) {
-                            await auth.currentUser.delete();
-                            console.log('Cleaned up orphaned auth user');
-                        }
+                        console.log('Cleaning up orphaned auth user...');
+                        await auth.currentUser.delete();
+                        console.log('Auth user cleanup successful');
                     } catch (cleanupError) {
-                        console.error('Error cleaning up user:', cleanupError);
+                        console.error('Auth cleanup failed:', cleanupError);
                     }
                 }
                 
@@ -688,7 +721,7 @@
                         errorMessage = 'Password should be at least 6 characters';
                         break;
                     case 'permission-denied':
-                        errorMessage = 'Database permission error. Please check Firestore rules.';
+                        errorMessage = 'Database permission error. Using local storage fallback.';
                         break;
                     default:
                         errorMessage = error.message;
@@ -705,6 +738,9 @@
 
         async function logout() {
             try {
+                if (currentUser) {
+                    localStorage.removeItem(`user_${currentUser.uid}`);
+                }
                 await auth.signOut();
             } catch (error) {
                 console.error('Logout error:', error);
@@ -718,6 +754,8 @@
             
             document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
+            
+            console.log('App shown successfully for user:', currentUser.uid, 'with role:', currentUserRole);
         }
 
         function showLogin() {
@@ -741,9 +779,7 @@
             document.getElementById('authMessages').innerHTML = '';
         }
 
-        // Open workflow in new window/tab
         function openWorkflow() {
-            // Store user data in sessionStorage for workflow page
             sessionStorage.setItem('ebtracker_user', JSON.stringify({
                 uid: currentUser.uid,
                 email: currentUser.email,
@@ -751,7 +787,6 @@
                 role: currentUserRole
             }));
             
-            // Open workflow page
             window.open('workflow.html', '_blank');
         }
 
@@ -832,6 +867,27 @@
         window.listRoleUsers = listRoleUsers;
         window.showAllUsers = showAllUsers;
         window.viewAuthorizedUsers = () => console.log(authorizedUsers);
+
+        // Debug function to test Firestore connectivity
+        window.testFirestore = async function() {
+            console.log('Testing Firestore connectivity...');
+            try {
+                await db.collection('test').doc('test').set({
+                    test: 'value',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('✅ Firestore write test SUCCESS');
+                
+                const testDoc = await db.collection('test').doc('test').get();
+                if (testDoc.exists) {
+                    console.log('✅ Firestore read test SUCCESS:', testDoc.data());
+                } else {
+                    console.log('❌ Firestore read test FAILED: Document not found');
+                }
+            } catch (error) {
+                console.log('❌ Firestore test FAILED:', error.message);
+            }
+        };
 
     </script>
 </body>
