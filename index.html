@@ -210,7 +210,7 @@
             color: white;
         }
 
-        .error-message, .success-message {
+        .error-message, .success-message, .info-message {
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
@@ -227,6 +227,12 @@
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
+        }
+        
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
         }
 
         .info-box {
@@ -328,7 +334,6 @@
 
                 <div id="authMessages"></div>
 
-                <!-- Login Form -->
                 <div id="loginContent" class="auth-content active">
                     <form id="loginForm">
                         <div class="form-group">
@@ -345,7 +350,6 @@
                     </form>
                 </div>
 
-                <!-- Register Form -->
                 <div id="registerContent" class="auth-content">
                     <form id="registerForm">
                         <div class="role-selector">
@@ -410,7 +414,6 @@
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -431,25 +434,30 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // AUTHORIZED EMAIL ADDRESSES FOR NON-BDM ROLES
-        // Add/remove email addresses as needed
+        // AUTHORIZED EMAIL CONFIGURATION
+        // This object controls access for non-BDM roles.
         const authorizedUsers = {
+            // ESTIMATOR ROLE - Technical team members who can estimate project hours
             estimator: [
-                "john.doe@company.com",
-                "jane.smith@company.com",
+                "john.estimator@edanbrook.com",
+                "sarah.technical@edanbrook.com", 
+                "mike.estimation@edanbrook.com",
                 "estimator@edanbrook.com",
-                // Add more estimator emails here
             ],
+            
+            // COO ROLE - Operations management with pricing approval authority
             coo: [
                 "coo@edanbrook.com",
-                "operations@company.com",
-                // Add more COO emails here
+                "operations.manager@edanbrook.com",
+                "michael.operations@edanbrook.com",
             ],
+            
+            // DIRECTOR ROLE - Executive level with full system access
             director: [
                 "director@edanbrook.com",
-                "ceo@company.com",
+                "ceo@edanbrook.com", 
+                "president@edanbrook.com",
                 "admin@edanbrook.com",
-                // Add more director emails here
             ]
         };
 
@@ -477,7 +485,7 @@
                         }
                     } catch (error) {
                         console.error('Error getting user data:', error);
-                        showError('Database Error', 'Failed to load user data');
+                        showMessage('Database Error: Failed to load user data', 'error');
                     }
                 } else {
                     currentUser = null;
@@ -576,6 +584,9 @@
                 
                 // Create user account
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+
+                // Update user profile display name
+                await userCredential.user.updateProfile({ displayName: name });
                 
                 // Add user data to Firestore
                 await db.collection('users').doc(userCredential.user.uid).set({
@@ -586,9 +597,9 @@
                     lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
-                showMessage('Account created successfully!', 'success');
+                showMessage('Account created successfully! Logging in...', 'success');
                 
-                // Success handled by auth state listener
+                // Success will be fully handled by auth state listener
                 
             } catch (error) {
                 console.error('Registration error:', error);
@@ -613,7 +624,8 @@
         }
 
         function isAuthorizedEmail(email, role) {
-            return authorizedUsers[role] && authorizedUsers[role].includes(email);
+            const normalizedEmail = email.toLowerCase().trim();
+            return authorizedUsers[role] && authorizedUsers[role].includes(normalizedEmail);
         }
 
         async function logout() {
@@ -672,7 +684,7 @@
                     <p>✅ Authentication: Firebase Auth</p>
                     <p>✅ Database: Firestore</p>
                     <p>✅ Access Control: Role-based with email authorization</p>
-                    <p>✅ Status: Ready for production</p>
+                    <p>✅ Status: Ready</p>
                 </div>
             `;
         }
@@ -716,8 +728,8 @@
             
             messagesDiv.innerHTML = `<div class="${className}">${message}</div>`;
             
-            if (type === 'success') {
-                setTimeout(clearMessages, 3000);
+            if (type !== 'error' && type !== 'info') {
+                setTimeout(clearMessages, 4000);
             }
         }
 
@@ -725,44 +737,91 @@
             document.getElementById('authMessages').innerHTML = '';
         }
 
-        // Function to add new authorized users (for admin use)
-        function addAuthorizedUser(email, role) {
+        /**
+         * ADMIN CONSOLE FUNCTIONS
+         * These functions can be used in the browser console for dynamic user management.
+         * Example usage: addUserAccess("new.user@edanbrook.com", "estimator")
+        */
+
+        // Function to add a user (can be called from browser console)
+        function addUserAccess(email, role) {
             if (!authorizedUsers[role]) {
-                console.error('Invalid role:', role);
+                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
                 return false;
             }
             
-            if (!authorizedUsers[role].includes(email.toLowerCase())) {
-                authorizedUsers[role].push(email.toLowerCase());
-                console.log(`Added ${email} to ${role} authorized users`);
-                return true;
+            const normalizedEmail = email.toLowerCase().trim();
+            
+            if (authorizedUsers[role].includes(normalizedEmail)) {
+                console.log(`⚠️ User ${normalizedEmail} already has access to the ${role} role.`);
+                return false;
             }
             
-            console.log(`${email} already authorized for ${role}`);
-            return false;
+            authorizedUsers[role].push(normalizedEmail);
+            console.log(`✅ Added ${normalizedEmail} to ${role} role.`);
+            console.log('To apply changes, copy the updated object below and replace it in the HTML file:');
+            console.log(JSON.stringify(authorizedUsers, null, 4));
+            return true;
         }
 
-        // Function to remove authorized users (for admin use)
-        function removeAuthorizedUser(email, role) {
+        // Function to remove a user (can be called from browser console)
+        function removeUserAccess(email, role) {
             if (!authorizedUsers[role]) {
-                console.error('Invalid role:', role);
+                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
                 return false;
             }
             
-            const index = authorizedUsers[role].indexOf(email.toLowerCase());
-            if (index > -1) {
-                authorizedUsers[role].splice(index, 1);
-                console.log(`Removed ${email} from ${role} authorized users`);
-                return true;
+            const normalizedEmail = email.toLowerCase().trim();
+            const index = authorizedUsers[role].indexOf(normalizedEmail);
+            
+            if (index === -1) {
+                console.log(`⚠️ User ${normalizedEmail} not found in the ${role} role.`);
+                return false;
             }
             
-            console.log(`${email} not found in ${role} authorized users`);
-            return false;
+            authorizedUsers[role].splice(index, 1);
+            console.log(`✅ Removed ${normalizedEmail} from ${role} role.`);
+            console.log('To apply changes, copy the updated object below and replace it in the HTML file:');
+            console.log(JSON.stringify(authorizedUsers, null, 4));
+            return true;
+        }
+
+        // Function to list all users for a role
+        function listRoleUsers(role) {
+            if (!authorizedUsers[role]) {
+                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
+                return;
+            }
+            
+            console.log(`📋 ${role.toUpperCase()} Role Users (${authorizedUsers[role].length}):`);
+            authorizedUsers[role].forEach((email, index) => {
+                console.log(`  ${index + 1}. ${email}`);
+            });
+        }
+
+        // Function to show all authorized users
+        function showAllUsers() {
+            console.log('📊 ALL AUTHORIZED USERS:');
+            console.log('========================');
+            
+            Object.keys(authorizedUsers).forEach(role => {
+                console.log(`\n${role.toUpperCase()} (${authorizedUsers[role].length} users):`);
+                if (authorizedUsers[role].length > 0) {
+                    authorizedUsers[role].forEach((email, index) => {
+                        console.log(`  ${index + 1}. ${email}`);
+                    });
+                } else {
+                    console.log('  (No users in this role)');
+                }
+            });
+             console.log('========================');
         }
 
         // Expose functions for admin console use
-        window.addAuthorizedUser = addAuthorizedUser;
-        window.removeAuthorizedUser = removeAuthorizedUser;
+        window.addUserAccess = addUserAccess;
+        window.removeUserAccess = removeUserAccess;
+        window.listRoleUsers = listRoleUsers;
+        window.showAllUsers = showAllUsers;
         window.viewAuthorizedUsers = () => console.log(authorizedUsers);
 
     </script>
