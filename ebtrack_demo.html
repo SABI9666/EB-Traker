@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBTrack Complete Demo - EDANBROOK Project Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-blue: #00BFFF;
+            --dark-blue: #0099CC;
+            --light-blue: #E6F7FF;
+            --text-dark: #2C3E50;
+            --text-light: #7F8C8D;
+            --background: #F8FAFB;
+            --white: #FFFFFF;
+            --success: #27AE60;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --border: #E1E8ED;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        .demo-banner {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            font-weight: bold;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            font-size: 0.9rem;
+        }
+
+        .login-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            padding-top: 4rem;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            min-width: 1200px;
+            min-height: 700px;
+        }
+
+        .login-left {
+            flex: 1;
+            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .logo-circle {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--primary-blue);
+            font-size: 40px;
+            margin-bottom: 1rem;
+        }
+
+        .company-title {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .company-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+
+        .login-right {
+            flex: 1.2;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .demo-roles {
+            margin-bottom: 2rem;
+        }
+
+        .demo-roles h3 {
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        .role-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .role-btn {
+            padding: 1.5rem;
+            background: var(--light-blue);
+            border: 2px solid var(--primary-blue);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: var(--primary-blue);
+        }
+
+        .role-btn:hover {
+            background: var(--primary-blue);
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 191, 255, 0.3);
+        }
+
+        .role-icon {
+            font-size: 2rem;
+            margin-bottom: 0.8rem;
+            display: block;
+        }
+
+        .role-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .role-description {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        .app-container {
+            display: none;
+            min-height: 100vh;
+            margin-top: 40px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo .logo-circle {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+        }
+
+        .company-info h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .company-info p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 1rem;
+        }
+
+        .main-layout {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            padding: 2rem 0;
+            min-height: calc(100vh - 120px);
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu a {
+            display: block;
+            padding: 1rem 2rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            border-right: 4px solid var(--primary-blue);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            background: var(--background);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--dark-blue));
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .action-items {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .action-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            background: var(--background);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-blue);
+            transition: all 0.3s ease;
+        }
+
+        .action-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .action-content {
+            flex: 1;
+        }
+
+        .action-content strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+
+        .action-meta {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        
+        .btn-outline {
+            background: transparent;
+            color: var(--primary-blue);
+            border: 2px solid var(--primary-blue);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.85rem;
+        }
+
+        .executive-dashboard {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            color: white;
+            margin-top: 2rem;
+        }
+
+        .executive-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .executive-metric {
+            text-align: center;
+            background: rgba(255,255,255,0.15);
+            padding: 1.5rem;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .executive-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .executive-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .recent-activity {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s ease;
+        }
+
+        .activity-item:hover {
+            background: var(--light-blue);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-content strong {
+            color: var(--text-dark);
+            font-size: 1rem;
+        }
+
+        .activity-meta {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+
+        .activity-time {
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1);
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid #28a745;
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                flex-direction: column;
+                min-width: auto;
+                margin: 1rem;
+            }
+            
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .role-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .executive-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .action-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .action-buttons {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-banner">
+        COMPLETE DEMO - EBTrack Project Management System for EDANBROOK
+    </div>
+
+    <div id="loginPage" class="login-page">
+        <div class="login-container">
+            <div class="login-left">
+                <div class="logo-circle">EB</div>
+                <h1 class="company-title">EDANBROOK</h1>
+                <p class="company-subtitle">Project Management System</p>
+                <div style="margin-top: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Complete Workflow Demo</h3>
+                    <ul style="text-align: left; max-width: 300px; font-size: 0.9rem;">
+                        <li>Multi-Role Dashboards</li>
+                        <li>Real Workflow Simulation</li>
+                        <li>Interactive Approvals</li>
+                        <li>Executive Analytics</li>
+                        <li>Professional UI/UX</li>
+                        <li>Mobile Responsive</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="login-right">
+                <div class="demo-roles">
+                    <h3>Select Any Role to Explore:</h3>
+                    <div class="role-buttons">
+                        <div class="role-btn" onclick="loginAs('bdm')">
+                            <span class="role-icon">👤</span>
+                            <div class="role-title">Business Development Manager</div>
+                            <div class="role-description">Create proposals, submit to clients, track opportunities</div>
+                        </div>
+                        
+                        <div class="role-btn" onclick="loginAs('estimator')">
+                            <span class="role-icon">💰</span>
+                            <div class="role-title">Technical Estimator</div>
+                            <div class="role-description">Review projects, estimate hours, technical analysis</div>
+                        </div>
+                        
+                        <div class="role-btn" onclick="loginAs('coo')">
+                            <span class="role-icon">👔</span>
+                            <div class="role-title">Chief Operating Officer</div>
+                            <div class="role-description">Set pricing, approve margins, workflow oversight</div>
+                        </div>
+                        
+                        <div class="role-btn" onclick="loginAs('director')">
+                            <span class="role-icon">🎯</span>
+                            <div class="role-title">Executive Director</div>
+                            <div class="role-description">Strategic approvals, business intelligence, KPIs</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
+                    <p style="color: #666; font-size: 0.9rem; line-height: 1.5;">
+                        Interactive Demo: Each role shows a unique dashboard with realistic data.<br>
+                        Click any role above to see their complete workflow experience.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appContainer" class="app-container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-circle">EB</div>
+                    <div class="company-info">
+                        <h1>EDANBROOK</h1>
+                        <p>EBTrack - Project Management System</p>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <div id="userWelcome">Welcome back, User</div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Demo Mode</div>
+                    <button onclick="showLogin()" class="btn-logout">Change Role</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <nav class="sidebar">
+                <ul class="nav-menu">
+                    <li><a href="#" onclick="showDashboard()" class="active" id="nav-dashboard">📊 Dashboard</a></li>
+                    <li><a href="#" onclick="showProposalForm()" id="nav-proposals">📝 New Proposal</a></li>
+                    <li><a href="#" onclick="showFeature('workflow')" id="nav-workflow">🔄 Workflow</a></li>
+                    <li><a href="#" onclick="showFeature('reports')" id="nav-reports">📈 Reports</a></li>
+                    <li><a href="#" onclick="showFeature('settings')" id="nav-settings">⚙️ Settings</a></li>
+                </ul>
+            </nav>
+
+            <main class="main-content" id="mainContent">
+                </main>
+        </div>
+    </div>
+
+<script>
+// --- CORE APPLICATION LOGIC (PART 1) ---
+let currentUserRole = '';
+
+const roleData = {
+    'bdm': { name: 'Business Development Manager' },
+    'estimator': { name: 'Technical Estimator' },
+    'coo': { name: 'Chief Operating Officer' },
+    'director': { name: 'Executive Director' }
+};
+
+function loginAs(role) {
+    currentUserRole = role;
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    document.getElementById('userWelcome').textContent = `Welcome back, ${roleData[role].name}`;
+    
+    // Hide 'New Proposal' for non-BDM roles for realism
+    document.getElementById('nav-proposals').style.display = (role === 'bdm') ? 'block' : 'none';
+
+    showDashboard();
+}
+
+function showLogin() {
+    document.getElementById('appContainer').style.display = 'none';
+    document.getElementById('loginPage').style.display = 'flex';
+    currentUserRole = '';
+}
+
+function showDashboard() {
+    document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+    document.getElementById('nav-dashboard').classList.add('active');
+
+    switch (currentUserRole) {
+        case 'bdm':
+            renderBdmDashboard();
+            break;
+        case 'estimator':
+            renderEstimatorDashboard();
+            break;
+        case 'coo':
+            renderCooDashboard();
+            break;
+        case 'director':
+            renderDirectorDashboard();
+            break;
+        default:
+            document.getElementById('mainContent').innerHTML = '<h1>Error: Role not found.</h1>';
+    }
+}
+
+// --- ROLE-SPECIFIC DASHBOARDS (PART 2) ---
+
+function renderBdmDashboard() {
+    document.getElementById('mainContent').innerHTML = `
+        <div class="dashboard-stats">
+            <div class="stat-card"><div class="stat-number">12</div><div class="stat-label">Active Proposals</div></div>
+            <div class="stat-card"><div class="stat-number">$1.2M</div><div class="stat-label">Pipeline Value</div></div>
+            <div class="stat-card"><div class="stat-number">4</div><div class="stat-label">Proposals Won (Q3)</div></div>
+            <div class="stat-card"><div class="stat-number">72%</div><div class="stat-label">Win Rate</div></div>
+        </div>
+
+        <div class="action-items">
+            <h3>Your Action Items</h3>
+            <div class="action-item">
+                <div class="action-content">
+                    <strong>Start a New Project Proposal</strong>
+                    <div class="action-meta">Create a new proposal to initiate the estimation and approval workflow.</div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showProposalForm()">Create Proposal</button>
+                </div>
+            </div>
+             <div class="action-item">
+                <div class="action-content">
+                    <strong>Finalize Proposal for Dynamic Retail</strong>
+                    <div class="action-meta">Status: Approved by Director. Ready for client submission.</div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="demoAction('Submit to Client')">Submit to Client</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderEstimatorDashboard() {
+    document.getElementById('mainContent').innerHTML = `
+        <div class="dashboard-stats">
+            <div class="stat-card"><div class="stat-number">5</div><div class="stat-label">Pending Estimations</div></div>
+            <div class="stat-card"><div class="stat-number">18</div><div class="stat-label">Estimations This Month</div></div>
+            <div class="stat-card"><div class="stat-number">2.5</div><div class="stat-label">Avg. Turnaround (Days)</div></div>
+            <div class="stat-card"><div class="stat-number">95%</div><div class="stat-label">Estimation Accuracy</div></div>
+        </div>
+
+        <div class="action-items">
+            <h3>Your Action Items</h3>
+            <div class="action-item">
+                <div class="action-content">
+                    <strong>Estimate Hours for HVAC System Upgrade</strong>
+                    <div class="action-meta">Client: ABC Manufacturing Ltd | Submitted by: Sarah BDM | Priority: High</div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showEstimationForm()">Start Estimation</button>
+                </div>
+            </div>
+             <div class="action-item">
+                <div class="action-content">
+                    <strong>Review Scope for Warehouse Ventilation</strong>
+                    <div class="action-meta">Client: Logistics Solutions Inc | Submitted by: Mike BDM | Priority: Medium</div>
+                </div>
+                <div class="action-buttons">
+                     <button class="btn btn-outline" onclick="demoAction('View Details')">View Details</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCooDashboard() {
+    document.getElementById('mainContent').innerHTML = `
+        <div class="dashboard-stats">
+            <div class="stat-card"><div class="stat-number">3</div><div class="stat-label">Pending Price Approval</div></div>
+            <div class="stat-card"><div class="stat-number">28%</div><div class="stat-label">Average Project Margin</div></div>
+            <div class="stat-card"><div class="stat-number">$2.5M</div><div class="stat-label">Revenue This Quarter</div></div>
+            <div class="stat-card"><div class="stat-number">8</div><div class="stat-label">Active High-Margin Projects</div></div>
+        </div>
+
+        <div class="action-items">
+            <h3>Your Action Items</h3>
+            <div class="action-item">
+                <div class="action-content">
+                    <strong>Set Pricing for Commercial Building HVAC</strong>
+                    <div class="action-meta">Client: Retail Corp | Estimated Hours: 240 | Country: Canada</div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showCOOApproval()">Approve Pricing</button>
+                </div>
+            </div>
+             <div class="action-item">
+                <div class="action-content">
+                    <strong>Review High-Value Industrial Project</strong>
+                    <div class="action-meta">Client: Global Petrochem | Estimated Hours: 850 | Country: USA</div>
+                </div>
+                <div class="action-buttons">
+                     <button class="btn btn-outline" onclick="demoAction('Review Details')">Review Details</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderDirectorDashboard() {
+    document.getElementById('mainContent').innerHTML = `
+        <div class="dashboard-stats">
+            <div class="stat-card"><div class="stat-number">$5.8M</div><div class="stat-label">Total Pipeline Value</div></div>
+            <div class="stat-card"><div class="stat-number">72%</div><div class="stat-label">Win Rate (YTD)</div></div>
+            <div class="stat-card"><div class="stat-number">31%</div><div class="stat-label">Avg Profit Margin (YTD)</div></div>
+            <div class="stat-card"><div class="stat-number">2</div><div class="stat-label">Strategic Projects Pending</div></div>
+        </div>
+
+        <div class="action-items">
+            <h3>Your Action Items</h3>
+            <div class="action-item">
+                <div class="action-content">
+                    <strong>Final Approval for Data Center Cooling Project</strong>
+                    <div class="action-meta">Client: CloudTech Solutions | Value: $450,000 | Margin: 30% | Strategic Importance: High</div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="showDirectorApproval()">Grant Executive Approval</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="executive-dashboard">
+            <h3>Executive Overview (Q3 2025)</h3>
+            <div class="executive-grid">
+                <div class="executive-metric"><div class="executive-number">$2.1M</div><div class="executive-label">Booked Revenue</div></div>
+                <div class="executive-metric"><div class="executive-number">15</div><div class="executive-label">Projects Won</div></div>
+                <div class="executive-metric"><div class="executive-number">92%</div><div class="executive-label">Client Satisfaction</div></div>
+                <div class="executive-metric"><div class="executive-number">85%</div><div class="executive-label">Resource Utilization</div></div>
+            </div>
+        </div>
+    `;
+}
+
+// --- INTERACTIVE FUNCTIONS & MODALS (PART 3) ---
+
+// Proposal Form
+function showProposalForm() {
+    document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+    document.getElementById('nav-proposals').classList.add('active');
+    
+    document.getElementById('mainContent').innerHTML = `
+        <div style="margin-bottom: 2rem;">
+            <h1 style="color: var(--text-dark); margin-bottom: 0.5rem;">Create New Proposal</h1>
+            <p style="color: var(--text-light);">Start a new project proposal workflow</p>
+        </div>
+
+        <form onsubmit="submitProposal(event)" style="display: grid; gap: 2rem;">
+            <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                <h3 style="color: var(--text-dark); margin-bottom: 1.5rem;">Project Information</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label for="projectName">Project Name</label>
+                        <input type="text" id="projectName" class="form-control" required placeholder="Enter project name">
+                    </div>
+                    <div class="form-group">
+                        <label for="projectType">Project Type</label>
+                        <select id="projectType" class="form-control" required>
+                            <option value="">Select Type</option>
+                            <option value="Industrial">Industrial HVAC</option>
+                            <option value="Commercial">Commercial HVAC</option>
+                            <option value="Cooling">Cooling Systems</option>
+                            <option value="Ventilation">Ventilation Systems</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="clientCompany">Client Company</label>
+                        <input type="text" id="clientCompany" class="form-control" required placeholder="Enter client company name">
+                    </div>
+                    <div class="form-group">
+                        <label for="country">Country</label>
+                        <select id="country" class="form-control" required>
+                            <option value="">Select Country</option>
+                            <option value="Australia">Australia</option>
+                            <option value="USA">USA</option>
+                            <option value="Canada">Canada</option>
+                            <option value="UK">UK</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                <h3 style="color: var(--text-dark); margin-bottom: 1.5rem;">Project Details</h3>
+                <div class="form-group">
+                    <label for="scopeOfWork">Scope of Work</label>
+                    <textarea id="scopeOfWork" class="form-control" rows="6" placeholder="Detailed description of project scope and requirements..."></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label for="timeline">Expected Timeline</label>
+                        <select id="timeline" class="form-control">
+                            <option value="">Select Timeline</option>
+                            <option value="1-3 months">1-3 months</option>
+                            <option value="3-6 months">3-6 months</option>
+                            <option value="6-12 months">6-12 months</option>
+                            <option value="12+ months">12+ months</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="priority">Priority Level</label>
+                        <select id="priority" class="form-control">
+                            <option value="">Select Priority</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline" onclick="showDashboard()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit for Estimation</button>
+            </div>
+        </form>
+    `;
+}
+
+// Submit Proposal Function
+function submitProposal(event) {
+    event.preventDefault();
+    
+    const projectName = document.getElementById('projectName').value;
+    const clientCompany = document.getElementById('clientCompany').value;
+    
+    document.getElementById('mainContent').innerHTML = `
+        <div style="text-align: center; padding: 4rem 2rem;">
+            <div class="success-message" style="max-width: 600px; margin: 0 auto;">
+                <h2 style="color: var(--success); margin-bottom: 1rem;">Proposal Submitted Successfully!</h2>
+                <p style="margin-bottom: 1.5rem;">
+                    <strong>${projectName}</strong> for <strong>${clientCompany}</strong> has been submitted to the estimation team.
+                </p>
+                <div style="background: rgba(40,167,69,0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                    <p><strong>Next Steps:</strong></p>
+                    <ul style="text-align: left; margin: 0.5rem 0; padding-left: 20px;">
+                        <li>Technical Estimator will review project scope</li>
+                        <li>Hour estimation will be completed within 3-5 business days</li>
+                        <li>COO will set pricing and margins</li>
+                        <li>Director will provide final approval</li>
+                        <li>You'll be notified when ready for client submission</li>
+                    </ul>
+                </div>
+            </div>
+            <div style="margin-top: 2rem;">
+                <button class="btn btn-primary" onclick="showDashboard()">Return to Dashboard</button>
+                <button class="btn btn-outline" onclick="showProposalForm()" style="margin-left: 1rem;">Create Another Proposal</button>
+            </div>
+        </div>
+    `;
+}
+
+// Feature Navigation
+function showFeature(feature) {
+    document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+    document.getElementById(`nav-${feature}`).classList.add('active');
+    
+    const features = {
+        'workflow': { title: 'Workflow & Process Management', description: 'Complete workflow management system with automated routing, notifications, and process tracking.', features: ['Automated proposal routing between roles', 'Real-time status tracking and notifications', 'Approval workflow management', 'Process analytics and bottleneck identification', 'Custom workflow templates'] },
+        'reports': { title: 'Analytics & Reporting Dashboard', description: 'Comprehensive business intelligence and reporting suite with real-time analytics.', features: ['Executive KPI dashboards', 'Win rate and pipeline analysis', 'Team performance metrics', 'Client relationship tracking', 'Financial reporting and forecasting'] },
+        'settings': { title: 'System Configuration & Settings', description: 'Complete system administration and configuration management.', features: ['User role and permission management', 'Email notification preferences', 'System integration settings', 'Custom field configuration', 'Security and audit settings'] }
+    };
+    
+    document.getElementById('mainContent').innerHTML = `
+        <div style="margin-bottom: 2rem;"><h1 style="color: var(--text-dark); margin-bottom: 0.5rem;">${features[feature].title}</h1><p style="color: var(--text-light);">${features[feature].description}</p></div>
+        <div style="background: white; border-radius: 15px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+            <h3 style="color: var(--text-dark); margin-bottom: 1.5rem;">Key Features</h3>
+            <div style="display: grid; gap: 1rem;">${features[feature].features.map(feat => `<div style="display: flex; align-items: center; padding: 1rem; background: var(--light-blue); border-radius: 8px;"><span style="color: var(--primary-blue); font-size: 1.2rem; margin-right: 1rem;">✓</span><span>${feat}</span></div>`).join('')}</div>
+        </div>
+        <div style="text-align: center; padding: 2rem;"><p style="color: var(--text-light); margin-bottom: 2rem;">This feature would contain the full ${feature} interface with all functionality implemented.</p><button class="btn btn-primary" onclick="showDashboard()">Return to Dashboard</button></div>
+    `;
+}
+
+// Modal Functions
+function showEstimationForm() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 700px;">
+            <div style="text-align: center; margin-bottom: 2rem;"><h2 style="color: var(--primary-blue); margin-bottom: 0.5rem;">PROJECT HOUR ESTIMATION</h2><p style="color: var(--text-light);">HVAC System Upgrade - ABC Manufacturing Ltd</p></div>
+            <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem;">
+                <h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Overview</h4>
+                <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                    <div><strong>Client:</strong> ABC Manufacturing Ltd</div><div><strong>Type:</strong> Industrial HVAC System</div><div><strong>Location:</strong> Melbourne, Australia</div><div><strong>Scope:</strong> Complete HVAC system upgrade including new units and ductwork</div>
+                </div>
+            </div>
+            <form onsubmit="completeEstimation(event)" style="display: grid; gap: 1.5rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group"><label for="designHours">Design Hours</label><input type="number" id="designHours" class="form-control" placeholder="80" required></div>
+                    <div class="form-group"><label for="installHours">Installation Hours</label><input type="number" id="installHours" class="form-control" placeholder="160" required></div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group"><label for="testingHours">Testing & Commissioning</label><input type="number" id="testingHours" class="form-control" placeholder="40" required></div>
+                    <div class="form-group"><label for="pmHours">Project Management</label><input type="number" id="pmHours" class="form-control" placeholder="32" required></div>
+                </div>
+                <div class="form-group"><label for="quoteType">Quote Type</label><select id="quoteType" class="form-control" required><option value="">Select Quote Type</option><option value="Lump Sum">Lump Sum</option><option value="Per Hour">Per Hour</option><option value="Per Tonne">Per Tonne</option></select></div>
+                <div style="background: var(--background); padding: 1rem; border-radius: 8px;"><div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--primary-blue); font-size: 1.2rem;"><span>Total Estimated Hours:</span><span id="totalHours">0</span></div></div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;"><button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button><button type="submit" class="btn btn-success">Submit Estimation</button></div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    ['designHours', 'installHours', 'testingHours', 'pmHours'].forEach(id => document.getElementById(id).addEventListener('input', updateTotal));
+}
+
+function showCOOApproval() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px;">
+            <div style="text-align: center; margin-bottom: 2rem;"><h2 style="color: var(--primary-blue); margin-bottom: 0.5rem;">COO PRICING APPROVAL</h2><p style="color: var(--text-light);">Commercial Building HVAC - Retail Corp</p></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px;"><h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Details</h4><div style="display: grid; gap: 0.5rem; font-size: 0.9rem;"><div><strong>Client:</strong> Retail Corp</div><div><strong>Type:</strong> Commercial HVAC</div><div><strong>Location:</strong> Toronto, Canada</div><div><strong>Estimated By:</strong> John Estimator</div></div></div>
+                <div style="background: #FEF3CD; padding: 1.5rem; border-radius: 10px;"><h4 style="color: var(--warning); margin-bottom: 1rem;">Hour Breakdown</h4><div style="display: grid; gap: 0.5rem; font-size: 0.9rem;"><div style="display: flex; justify-content: space-between;"><span>Design:</span><strong>60 hrs</strong></div><div style="display: flex; justify-content: space-between;"><span>Installation:</span><strong>140 hrs</strong></div><div style="display: flex; justify-content: space-between;"><span>Testing:</span><strong>25 hrs</strong></div><div style="display: flex; justify-content: space-between;"><span>Project Mgmt:</span><strong>15 hrs</strong></div><hr style="margin: 0.5rem 0;"><div style="display: flex; justify-content: space-between; font-weight: bold;"><span>Total Hours:</span><strong>240 hrs</strong></div></div></div>
+            </div>
+            <form onsubmit="completeCOOApproval(event)" style="display: grid; gap: 1.5rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group"><label for="hourlyRate">Hourly Rate (CAD)</label><input type="number" id="hourlyRate" class="form-control" value="125" required></div>
+                    <div class="form-group"><label for="quoteValue">Quote Value (CAD)</label><input type="text" id="quoteValue" class="form-control" value="85,000" required></div>
+                </div>
+                <div style="background: #D5F4E6; padding: 1rem; border-radius: 8px;"><div style="display: grid; gap: 0.5rem;"><div style="display: flex; justify-content: space-between;"><span>Labor Cost:</span><span>$30,000 CAD</span></div><div style="display: flex; justify-content: space-between;"><span>Materials:</span><span>$40,000 CAD</span></div><div style="display: flex; justify-content: space-between;"><span>Overhead & Profit:</span><span>$15,000 CAD</span></div><hr style="margin: 0.5rem 0;"><div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--success);"><span>Estimated Margin:</span><span>28%</span></div></div></div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;"><button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button><button type="submit" class="btn btn-success">Approve Pricing</button></div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function showDirectorApproval() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 1000px;">
+            <div style="text-align: center; margin-bottom: 2rem;"><h2 style="color: var(--primary-blue); margin-bottom: 0.5rem;">EXECUTIVE DIRECTOR APPROVAL</h2><p style="color: var(--text-light);">Data Center Cooling - CloudTech Solutions</p></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px;"><h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Summary</h4><div style="display: grid; gap: 0.5rem; font-size: 0.9rem;"><div><strong>Client:</strong> CloudTech Solutions</div><div><strong>Type:</strong> Data Center Cooling</div><div><strong>Location:</strong> Seattle, USA</div><div><strong>Timeline:</strong> 6 months</div><div><strong>Strategic Value:</strong> High</div></div></div>
+                <div style="background: #FEF3CD; padding: 1.5rem; border-radius: 10px;"><h4 style="color: var(--warning); margin-bottom: 1rem;">Financial Analysis</h4><div style="display: grid; gap: 0.5rem; font-size: 0.9rem;"><div style="display: flex; justify-content: space-between;"><span>Quote Value:</span><strong>$450,000</strong></div><div style="display: flex; justify-content: space-between;"><span>Total Hours:</span><strong>520 hrs</strong></div><div style="display: flex; justify-content: space-between;"><span>Labor Cost:</span><strong>$65,000</strong></div><div style="display: flex; justify-content: space-between;"><span>Materials:</span><strong>$250,000</strong></div><hr style="margin: 0.5rem 0;"><div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--success);"><span>Profit Margin:</span><strong>30%</strong></div></div></div>
+                <div style="background: #D5F4E6; padding: 1.5rem; border-radius: 10px;"><h4 style="color: var(--success); margin-bottom: 1rem;">Risk Assessment</h4><div style="display: grid; gap: 0.5rem; font-size: 0.9rem;"><div><strong>Technical Risk:</strong> Low</div><div><strong>Client Risk:</strong> Low</div><div><strong>Financial Risk:</strong> Low</div><div><strong>Timeline Risk:</strong> Medium</div><div><strong>Overall Risk:</strong> <span style="color: var(--success);">Low-Medium</span></div></div></div>
+            </div>
+            <div style="background: #F8F9FA; padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem;"><h4 style="color: var(--text-dark); margin-bottom: 1rem;">Strategic Considerations</h4><ul style="margin: 0; padding-left: 1.5rem; color: var(--text-dark);"><li>CloudTech is a high-growth technology company with expansion plans</li><li>This project could lead to additional data center projects (3-5 facilities planned)</li><li>Opportunity to establish EDANBROOK as their preferred HVAC partner</li><li>Premium pricing justified by mission-critical nature and timeline requirements</li><li>Strong referral potential in the technology sector</li></ul></div>
+            <form onsubmit="completeDirectorApproval(event)" style="display: grid; gap: 1.5rem;">
+                <div class="form-group"><label for="approvalNotes">Executive Comments (Optional)</label><textarea id="approvalNotes" class="form-control" rows="3" placeholder="Add any strategic notes or conditions for this approval..."></textarea></div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;"><button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button><button type="button" onclick="requestRevision()" class="btn btn-warning">Request Revision</button><button type="submit" class="btn btn-success">Grant Executive Approval</button></div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Helper Functions
+function updateTotal() {
+    const total = (parseInt(document.getElementById('designHours').value) || 0) + (parseInt(document.getElementById('installHours').value) || 0) + (parseInt(document.getElementById('testingHours').value) || 0) + (parseInt(document.getElementById('pmHours').value) || 0);
+    document.getElementById('totalHours').textContent = total;
+}
+
+function closeModal() {
+    document.querySelectorAll('.modal-overlay').forEach(modal => modal.remove());
+}
+
+function completeEstimation(event) {
+    event.preventDefault(); closeModal();
+    showSuccessMessage('Estimation Completed!', 'Project estimation has been completed and forwarded to COO for pricing approval. The project will now move to the next stage of the workflow.');
+}
+
+function completeCOOApproval(event) {
+    event.preventDefault(); closeModal();
+    showSuccessMessage('Pricing Approved!', 'Pricing has been approved and the proposal is now forwarded to the Executive Director for final strategic approval.');
+}
+
+function completeDirectorApproval(event) {
+    event.preventDefault(); closeModal();
+    showSuccessMessage('Executive Approval Granted!', 'The proposal has received executive approval and is now ready for client submission. The BDM has been notified and can proceed with client presentation.');
+}
+
+function requestRevision() {
+    closeModal();
+    showSuccessMessage('Revision Requested', 'A revision request has been sent back to the previous stage. The responsible team member will be notified to make the requested changes.');
+}
+
+function showSuccessMessage(title, message) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `<div class="modal-content" style="max-width: 500px; text-align: center;"><div style="color: var(--success); font-size: 3rem; margin-bottom: 1rem;">✓</div><h2 style="color: var(--success); margin-bottom: 1rem;">${title}</h2><p style="color: var(--text-dark); margin-bottom: 2rem; line-height: 1.6;">${message}</p><button onclick="closeModal(); showDashboard();" class="btn btn-primary">Continue</button></div>`;
+    document.body.appendChild(modal);
+}
+
+function demoAction(action) {
+    showSuccessMessage(`${action} Completed!`, `The "${action}" action has been completed successfully. In a full implementation, this would trigger the appropriate workflow processes.`);
+}
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('EBTrack Complete Demo System Loaded');
+    console.log('Click any role button to explore the complete workflow experience');
+});
+</script>
+
+</body>
+</html>
