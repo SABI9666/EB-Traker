@@ -543,6 +543,7 @@
                             currentUserRole = userDoc.data().role;
                             showApp();
                         } else {
+                            // User exists in Auth but not in Firestore - sign them out
                             await auth.signOut();
                             showMessage('Account Error: User data not found. Please contact administrator.', 'error');
                         }
@@ -640,9 +641,13 @@
                 
                 showMessage('Creating account...', 'info');
                 
+                // Create user account
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                
+                // Update user profile display name
                 await userCredential.user.updateProfile({ displayName: name });
                 
+                // Add user data to Firestore - this is critical!
                 await db.collection('users').doc(userCredential.user.uid).set({
                     name: name,
                     email: email,
@@ -653,8 +658,23 @@
                 
                 showMessage('Account created successfully! Logging in...', 'success');
                 
+                // The auth state listener will handle the rest
+                
             } catch (error) {
                 console.error('Registration error:', error);
+                
+                // If user was created in Auth but Firestore save failed, clean up
+                if (error.code === 'permission-denied' || error.message.includes('firestore')) {
+                    try {
+                        if (auth.currentUser) {
+                            await auth.currentUser.delete();
+                            console.log('Cleaned up orphaned auth user');
+                        }
+                    } catch (cleanupError) {
+                        console.error('Error cleaning up user:', cleanupError);
+                    }
+                }
+                
                 let errorMessage = 'Registration failed';
                 
                 switch (error.code) {
@@ -666,6 +686,9 @@
                         break;
                     case 'auth/weak-password':
                         errorMessage = 'Password should be at least 6 characters';
+                        break;
+                    case 'permission-denied':
+                        errorMessage = 'Database permission error. Please check Firestore rules.';
                         break;
                     default:
                         errorMessage = error.message;
