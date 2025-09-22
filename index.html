@@ -334,6 +334,7 @@
 
                 <div id="authMessages"></div>
 
+                <!-- Login Form -->
                 <div id="loginContent" class="auth-content active">
                     <form id="loginForm">
                         <div class="form-group">
@@ -350,6 +351,7 @@
                     </form>
                 </div>
 
+                <!-- Register Form -->
                 <div id="registerContent" class="auth-content">
                     <form id="registerForm">
                         <div class="role-selector">
@@ -401,7 +403,7 @@
                 <div class="user-info">
                     <div id="userWelcome">Welcome back</div>
                     <div id="userRole" style="font-size: 0.9rem; opacity: 0.8;"></div>
-                    <button onclick="logout()" class="btn-logout">Logout</button>
+                    <button id="logoutButton" class="btn-logout">Logout</button>
                 </div>
             </div>
         </div>
@@ -414,50 +416,53 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script type="module">
+        // Import functions from the Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged,
+            updateProfile
+        } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+        import { 
+            getFirestore,
+            doc,
+            getDoc,
+            setDoc,
+            serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-    <script>
-        // Firebase Configuration - REPLACE WITH YOUR CONFIG
+        // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU",
             authDomain: "eb-tracker-42881.firebaseapp.com",
             projectId: "eb-tracker-42881",
-            storageBucket: "eb-tracker-42881.firebasestorage.app",
+            storageBucket: "eb-tracker-42881.appspot.com",
             messagingSenderId: "922340749018",
             appId: "1:922340749018:web:68296d8775a79e71b2bfe3"
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
         // AUTHORIZED EMAIL CONFIGURATION
-        // This object controls access for non-BDM roles.
         const authorizedUsers = {
-            // ESTIMATOR ROLE - Technical team members who can estimate project hours
             estimator: [
-                "john.estimator@edanbrook.com",
-                "sarah.technical@edanbrook.com", 
-                "mike.estimation@edanbrook.com",
-                "estimator@edanbrook.com",
+                "john.estimator@edanbrook.com", "sarah.technical@edanbrook.com", 
+                "mike.estimation@edanbrook.com", "estimator@edanbrook.com",
             ],
-            
-            // COO ROLE - Operations management with pricing approval authority
             coo: [
-                "coo@edanbrook.com",
-                "operations.manager@edanbrook.com",
+                "coo@edanbrook.com", "operations.manager@edanbrook.com",
                 "michael.operations@edanbrook.com",
             ],
-            
-            // DIRECTOR ROLE - Executive level with full system access
             director: [
-                "director@edanbrook.com",
-                "ceo@edanbrook.com", 
-                "president@edanbrook.com",
-                "admin@edanbrook.com",
+                "director@edanbrook.com", "ceo@edanbrook.com", 
+                "president@edanbrook.com", "admin@edanbrook.com",
             ]
         };
 
@@ -465,38 +470,13 @@
         let currentUser = null;
         let currentUserRole = '';
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            setupEventListeners();
-            
-            // Auth state listener
-            auth.onAuthStateChanged(async (user) => {
-                if (user) {
-                    currentUser = user;
-                    try {
-                        const userDoc = await db.collection('users').doc(user.uid).get();
-                        if (userDoc.exists) {
-                            currentUserRole = userDoc.data().role;
-                            showApp();
-                        } else {
-                            // User exists in Auth but not in Firestore - sign them out
-                            await auth.signOut();
-                            showError('Account Error', 'User data not found. Please contact administrator.');
-                        }
-                    } catch (error) {
-                        console.error('Error getting user data:', error);
-                        showMessage('Database Error: Failed to load user data', 'error');
-                    }
-                } else {
-                    currentUser = null;
-                    currentUserRole = '';
-                    showLogin();
-                }
-            });
-        });
-
+        // UI Elements
+        const loginPage = document.getElementById('loginPage');
+        const appContainer = document.getElementById('appContainer');
+        const authMessages = document.getElementById('authMessages');
+        
+        // Event Listeners Setup
         function setupEventListeners() {
-            // Role selector
             document.querySelectorAll('.role-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
@@ -505,164 +485,109 @@
                 });
             });
 
-            // Forms
             document.getElementById('loginForm').addEventListener('submit', handleLogin);
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('logoutButton').addEventListener('click', handleLogout);
         }
 
-        function showTab(tab) {
-            // Update tab buttons
+        window.showTab = function(tab) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
+            document.querySelector(`.auth-tab[onclick="showTab('${tab}')"]`).classList.add('active');
             
-            // Update content
             document.querySelectorAll('.auth-content').forEach(c => c.classList.remove('active'));
             document.getElementById(`${tab}Content`).classList.add('active');
             
-            // Clear messages
             clearMessages();
         }
 
         async function handleLogin(event) {
             event.preventDefault();
-            
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             
             try {
                 clearMessages();
                 showMessage('Logging in...', 'info');
-                
-                await auth.signInWithEmailAndPassword(email, password);
-                // Success handled by auth state listener
-                
+                await signInWithEmailAndPassword(auth, email, password);
+                // Auth state listener will handle success
             } catch (error) {
                 console.error('Login error:', error);
-                let errorMessage = 'Login failed';
-                
-                switch (error.code) {
-                    case 'auth/user-not-found':
-                        errorMessage = 'No account found with this email address';
-                        break;
-                    case 'auth/wrong-password':
-                        errorMessage = 'Incorrect password';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMessage = 'Invalid email address';
-                        break;
-                    case 'auth/user-disabled':
-                        errorMessage = 'This account has been disabled';
-                        break;
-                    default:
-                        errorMessage = error.message;
-                }
-                
+                const errorMessage = getAuthErrorMessage(error.code);
                 showMessage(errorMessage, 'error');
             }
         }
 
         async function handleRegister(event) {
             event.preventDefault();
-            
             const name = document.getElementById('registerName').value;
             const email = document.getElementById('registerEmail').value.toLowerCase();
             const password = document.getElementById('registerPassword').value;
             const role = document.getElementById('selectedRole').value;
             
-            try {
-                clearMessages();
-                
-                // Check if role requires authorization
-                if (role !== 'bdm') {
-                    if (!isAuthorizedEmail(email, role)) {
-                        showMessage(`Access denied. Email ${email} is not authorized for ${role.toUpperCase()} role. Contact administrator for access.`, 'error');
-                        return;
-                    }
-                }
-                
-                showMessage('Creating account...', 'info');
-                
-                // Create user account
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            clearMessages();
 
-                // Update user profile display name
-                await userCredential.user.updateProfile({ displayName: name });
+            if (role !== 'bdm' && !isAuthorizedEmail(email, role)) {
+                showMessage(`Access denied. Email is not authorized for ${role.toUpperCase()} role.`, 'error');
+                return;
+            }
+            
+            try {
+                showMessage('Creating account...', 'info');
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: name });
                 
-                // Add user data to Firestore
-                await db.collection('users').doc(userCredential.user.uid).set({
+                const userDocRef = doc(db, 'users', userCredential.user.uid);
+                await setDoc(userDocRef, {
                     name: name,
                     email: email,
                     role: role,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: serverTimestamp(),
+                    lastLogin: serverTimestamp()
                 });
                 
                 showMessage('Account created successfully! Logging in...', 'success');
-                
-                // Success will be fully handled by auth state listener
-                
+                // Auth state listener will handle UI change
             } catch (error) {
                 console.error('Registration error:', error);
-                let errorMessage = 'Registration failed';
-                
-                switch (error.code) {
-                    case 'auth/email-already-in-use':
-                        errorMessage = 'An account with this email already exists';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMessage = 'Invalid email address';
-                        break;
-                    case 'auth/weak-password':
-                        errorMessage = 'Password should be at least 6 characters';
-                        break;
-                    default:
-                        errorMessage = error.message;
-                }
-                
+                const errorMessage = getAuthErrorMessage(error.code);
                 showMessage(errorMessage, 'error');
             }
         }
 
-        function isAuthorizedEmail(email, role) {
-            const normalizedEmail = email.toLowerCase().trim();
-            return authorizedUsers[role] && authorizedUsers[role].includes(normalizedEmail);
-        }
-
-        async function logout() {
+        async function handleLogout() {
             try {
-                await auth.signOut();
+                await signOut(auth);
             } catch (error) {
                 console.error('Logout error:', error);
                 showMessage('Logout failed: ' + error.message, 'error');
             }
         }
+        
+        function isAuthorizedEmail(email, role) {
+            return authorizedUsers[role]?.includes(email.toLowerCase().trim());
+        }
 
         function showApp() {
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'block';
-            
-            // Update user info
+            loginPage.style.display = 'none';
+            appContainer.style.display = 'block';
             document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
-            
-            // Load role-specific dashboard
             loadDashboard();
         }
 
         function showLogin() {
-            document.getElementById('appContainer').style.display = 'none';
-            document.getElementById('loginPage').style.display = 'flex';
+            appContainer.style.display = 'none';
+            loginPage.style.display = 'flex';
             clearMessages();
         }
 
         function loadDashboard() {
             const roleNames = {
                 bdm: 'Business Development Manager',
-                estimator: 'Technical Estimator', 
+                estimator: 'Technical Estimator',
                 coo: 'Chief Operating Officer',
                 director: 'Executive Director'
             };
-            
             document.getElementById('dashboardContent').innerHTML = `
                 <h2>${roleNames[currentUserRole]} Dashboard</h2>
                 <div style="background: var(--light-blue); padding: 2rem; border-radius: 10px; margin: 2rem 0;">
@@ -671,158 +596,99 @@
                     <p><strong>Email:</strong> ${currentUser.email}</p>
                     <p><strong>Account Status:</strong> <span style="color: var(--success); font-weight: bold;">Active</span></p>
                 </div>
-                
-                <div style="margin-top: 2rem;">
-                    <h3>Quick Actions</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                        ${getRoleActions(currentUserRole)}
-                    </div>
-                </div>
-                
-                <div style="margin-top: 2rem;">
-                    <h3>System Information</h3>
-                    <p>✅ Authentication: Firebase Auth</p>
-                    <p>✅ Database: Firestore</p>
-                    <p>✅ Access Control: Role-based with email authorization</p>
-                    <p>✅ Status: Ready</p>
-                </div>
-            `;
+                <div style="margin-top: 2rem;"><h3>Quick Actions</h3><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">${getRoleActions(currentUserRole)}</div></div>
+                <div style="margin-top: 2rem;"><h3>System Information</h3><p>✅ Authentication: Firebase Auth</p><p>✅ Database: Firestore</p><p>✅ Access Control: Role-based</p><p>✅ Status: Ready</p></div>`;
         }
 
         function getRoleActions(role) {
             const actions = {
-                bdm: [
-                    { title: 'Create Proposal', desc: 'Start a new project proposal' },
-                    { title: 'View Pipeline', desc: 'Check active opportunities' },
-                    { title: 'Client Management', desc: 'Manage client relationships' }
-                ],
-                estimator: [
-                    { title: 'Project Estimation', desc: 'Estimate project hours' },
-                    { title: 'Technical Review', desc: 'Review project specifications' },
-                    { title: 'Cost Analysis', desc: 'Analyze project costs' }
-                ],
-                coo: [
-                    { title: 'Approve Pricing', desc: 'Review and approve project pricing' },
-                    { title: 'Operations Dashboard', desc: 'Monitor business operations' },
-                    { title: 'Team Management', desc: 'Manage team resources' }
-                ],
-                director: [
-                    { title: 'Executive Approval', desc: 'Final project approvals' },
-                    { title: 'Strategic Overview', desc: 'Business intelligence dashboard' },
-                    { title: 'Performance Metrics', desc: 'Company performance analytics' }
-                ]
+                bdm: [{ title: 'Create Proposal', desc: 'Start a new project proposal' }, { title: 'View Pipeline', desc: 'Check active opportunities' }, { title: 'Client Management', desc: 'Manage client relationships' }],
+                estimator: [{ title: 'Project Estimation', desc: 'Estimate project hours' }, { title: 'Technical Review', desc: 'Review project specifications' }, { title: 'Cost Analysis', desc: 'Analyze project costs' }],
+                coo: [{ title: 'Approve Pricing', desc: 'Review and approve project pricing' }, { title: 'Operations Dashboard', desc: 'Monitor business operations' }, { title: 'Team Management', desc: 'Manage team resources' }],
+                director: [{ title: 'Executive Approval', desc: 'Final project approvals' }, { title: 'Strategic Overview', desc: 'Business intelligence dashboard' }, { title: 'Performance Metrics', desc: 'Company performance analytics' }]
             };
-            
-            return actions[role].map(action => `
-                <div style="background: white; padding: 1.5rem; border-radius: 10px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h4 style="color: var(--primary-blue); margin-bottom: 0.5rem;">${action.title}</h4>
-                    <p style="color: var(--text-light); font-size: 0.9rem;">${action.desc}</p>
-                    <button style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary-blue); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="showMessage('Feature coming soon!', 'info')">Launch</button>
-                </div>
-            `).join('');
+            return actions[role].map(action => `<div style="background: white; padding: 1.5rem; border-radius: 10px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 10px rgba(0,0,0,0.1);"><h4 style="color: var(--primary-blue); margin-bottom: 0.5rem;">${action.title}</h4><p style="color: var(--text-light); font-size: 0.9rem;">${action.desc}</p><button style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary-blue); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="alert('Feature coming soon!')">Launch</button></div>`).join('');
         }
 
         function showMessage(message, type) {
-            const messagesDiv = document.getElementById('authMessages');
             const className = type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : 'info-message';
-            
-            messagesDiv.innerHTML = `<div class="${className}">${message}</div>`;
-            
+            authMessages.innerHTML = `<div class="${className}">${message}</div>`;
             if (type !== 'error' && type !== 'info') {
                 setTimeout(clearMessages, 4000);
             }
         }
 
         function clearMessages() {
-            document.getElementById('authMessages').innerHTML = '';
+            authMessages.innerHTML = '';
         }
-
-        /**
-         * ADMIN CONSOLE FUNCTIONS
-         * These functions can be used in the browser console for dynamic user management.
-         * Example usage: addUserAccess("new.user@edanbrook.com", "estimator")
-        */
-
-        // Function to add a user (can be called from browser console)
-        function addUserAccess(email, role) {
-            if (!authorizedUsers[role]) {
-                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
-                return false;
+        
+        function getAuthErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/user-not-found': return 'No account found with this email address.';
+                case 'auth/wrong-password': return 'Incorrect password.';
+                case 'auth/invalid-email': return 'Invalid email address format.';
+                case 'auth/user-disabled': return 'This account has been disabled.';
+                case 'auth/email-already-in-use': return 'An account with this email already exists.';
+                case 'auth/weak-password': return 'Password should be at least 6 characters.';
+                default: return 'An unexpected error occurred. Please try again.';
             }
-            
-            const normalizedEmail = email.toLowerCase().trim();
-            
-            if (authorizedUsers[role].includes(normalizedEmail)) {
-                console.log(`⚠️ User ${normalizedEmail} already has access to the ${role} role.`);
-                return false;
-            }
-            
-            authorizedUsers[role].push(normalizedEmail);
-            console.log(`✅ Added ${normalizedEmail} to ${role} role.`);
-            console.log('To apply changes, copy the updated object below and replace it in the HTML file:');
-            console.log(JSON.stringify(authorizedUsers, null, 4));
-            return true;
         }
-
-        // Function to remove a user (can be called from browser console)
-        function removeUserAccess(email, role) {
-            if (!authorizedUsers[role]) {
-                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
-                return false;
-            }
-            
-            const normalizedEmail = email.toLowerCase().trim();
-            const index = authorizedUsers[role].indexOf(normalizedEmail);
-            
-            if (index === -1) {
-                console.log(`⚠️ User ${normalizedEmail} not found in the ${role} role.`);
-                return false;
-            }
-            
-            authorizedUsers[role].splice(index, 1);
-            console.log(`✅ Removed ${normalizedEmail} from ${role} role.`);
-            console.log('To apply changes, copy the updated object below and replace it in the HTML file:');
-            console.log(JSON.stringify(authorizedUsers, null, 4));
-            return true;
-        }
-
-        // Function to list all users for a role
-        function listRoleUsers(role) {
-            if (!authorizedUsers[role]) {
-                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
-                return;
-            }
-            
-            console.log(`📋 ${role.toUpperCase()} Role Users (${authorizedUsers[role].length}):`);
-            authorizedUsers[role].forEach((email, index) => {
-                console.log(`  ${index + 1}. ${email}`);
-            });
-        }
-
-        // Function to show all authorized users
-        function showAllUsers() {
-            console.log('📊 ALL AUTHORIZED USERS:');
-            console.log('========================');
-            
-            Object.keys(authorizedUsers).forEach(role => {
-                console.log(`\n${role.toUpperCase()} (${authorizedUsers[role].length} users):`);
-                if (authorizedUsers[role].length > 0) {
-                    authorizedUsers[role].forEach((email, index) => {
-                        console.log(`  ${index + 1}. ${email}`);
-                    });
-                } else {
-                    console.log('  (No users in this role)');
+        
+        // Auth state observer
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                try {
+                    const userDocRef = doc(db, 'users', user.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (userDocSnap.exists()) {
+                        currentUserRole = userDocSnap.data().role;
+                        showApp();
+                    } else {
+                        console.error("User document not found in Firestore.");
+                        await signOut(auth); // Sign out inconsistent user
+                        showMessage('Account data missing. Please contact admin.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                    showMessage('Failed to load user data.', 'error');
+                    await signOut(auth);
                 }
-            });
-             console.log('========================');
+            } else {
+                currentUser = null;
+                currentUserRole = '';
+                showLogin();
+            }
+        });
+        
+        // Initial setup on DOM content loaded
+        document.addEventListener('DOMContentLoaded', setupEventListeners);
+        
+        // --- Admin Console Functions ---
+        window.addUserAccess = function(email, role) {
+            if (!authorizedUsers[role]) return console.error(`Invalid role: ${role}`);
+            const normEmail = email.toLowerCase().trim();
+            if (authorizedUsers[role].includes(normEmail)) return console.log(`Email already in ${role} list.`);
+            authorizedUsers[role].push(normEmail);
+            console.log(`Added ${normEmail} to ${role}. Copy the object below to update your source code:`);
+            console.log(JSON.stringify(authorizedUsers, null, 2));
         }
 
-        // Expose functions for admin console use
-        window.addUserAccess = addUserAccess;
-        window.removeUserAccess = removeUserAccess;
-        window.listRoleUsers = listRoleUsers;
-        window.showAllUsers = showAllUsers;
-        window.viewAuthorizedUsers = () => console.log(authorizedUsers);
+        window.removeUserAccess = function(email, role) {
+            if (!authorizedUsers[role]) return console.error(`Invalid role: ${role}`);
+            const normEmail = email.toLowerCase().trim();
+            const index = authorizedUsers[role].indexOf(normEmail);
+            if (index === -1) return console.log(`Email not found in ${role} list.`);
+            authorizedUsers[role].splice(index, 1);
+            console.log(`Removed ${normEmail} from ${role}. Copy the object below to update your source code:`);
+            console.log(JSON.stringify(authorizedUsers, null, 2));
+        }
+        
+        window.showAllUsers = function() {
+            console.log('--- Authorized Users ---');
+            console.log(JSON.stringify(authorizedUsers, null, 2));
+            console.log('------------------------');
+        }
 
     </script>
 </body>
