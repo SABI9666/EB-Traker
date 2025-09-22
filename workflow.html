@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBTracker Workflow - EDANBROOK Project Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-blue: #00BFFF;
+            --dark-blue: #0099CC;
+            --light-blue: #E6F7FF;
+            --text-dark: #2C3E50;
+            --text-light: #7F8C8D;
+            --background: #F8FAFB;
+            --white: #FFFFFF;
+            --success: #27AE60;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --border: #E1E8ED;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-circle {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--primary-blue);
+            font-size: 20px;
+        }
+
+        .company-info h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .company-info p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 1rem;
+        }
+
+        .main-layout {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            padding: 2rem 0;
+            min-height: calc(100vh - 120px);
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu a {
+            display: block;
+            padding: 1rem 2rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            border-right: 4px solid var(--primary-blue);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            background: var(--background);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--dark-blue));
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .action-items {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .action-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            background: var(--background);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-blue);
+            transition: all 0.3s ease;
+        }
+
+        .action-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .action-content {
+            flex: 1;
+        }
+
+        .action-content strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+
+        .action-meta {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        
+        .btn-outline {
+            background: transparent;
+            color: var(--primary-blue);
+            border: 2px solid var(--primary-blue);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.85rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .file-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+        }
+
+        .file-list {
+            margin-top: 1rem;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            background: var(--background);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .file-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-blue);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-blue), var(--dark-blue));
+            transition: width 0.3s ease;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid #28a745;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .unauthorized {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .unauthorized .logo-circle {
+            width: 80px;
+            height: 80px;
+            font-size: 32px;
+            margin: 0 auto 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .action-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .action-buttons {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="unauthorizedAccess" class="unauthorized" style="display: none;">
+        <div class="logo-circle">EB</div>
+        <h1>Unauthorized Access</h1>
+        <p style="margin: 1rem 0;">Please log in through the main application to access the workflow system.</p>
+        <button onclick="redirectToMain()" class="btn btn-primary">Go to Login</button>
+    </div>
+
+    <div id="workflowApp" style="display: none;">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-circle">EB</div>
+                    <div class="company-info">
+                        <h1>EDANBROOK</h1>
+                        <p>EBTracker - Workflow System</p>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <div id="userWelcome">Welcome</div>
+                    <div id="userRole" style="font-size: 0.8rem; opacity: 0.8;"></div>
+                    <button onclick="redirectToMain()" class="btn-logout">Back to Main</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <nav class="sidebar">
+                <ul class="nav-menu">
+                    <li><a href="#" onclick="showDashboard()" class="active" id="nav-dashboard">Dashboard</a></li>
+                    <li><a href="#" onclick="showProposalForm()" id="nav-proposals">New Proposal</a></li>
+                    <li><a href="#" onclick="showMyProposals()" id="nav-my-proposals">My Proposals</a></li>
+                    <li><a href="#" onclick="showPendingTasks()" id="nav-pending">Pending Tasks</a></li>
+                    <li><a href="#" onclick="showAllProposals()" id="nav-all-proposals">All Proposals</a></li>
+                </ul>
+            </nav>
+
+            <main class="main-content" id="mainContent">
+            </main>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU",
+            authDomain: "eb-tracker-42881.firebaseapp.com",
+            projectId: "eb-tracker-42881",
+            storageBucket: "eb-tracker-42881.firebasestorage.app",
+            messagingSenderId: "922340749018",
+            appId: "1:922340749018:web:68296d8775a79e71b2bfe3"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Global variables
+        let currentUser = null;
+        let currentUserRole = '';
+        let uploadedFiles = [];
+
+        // Role data
+        const roleData = {
+            'bdm': { name: 'Business Development Manager' },
+            'estimator': { name: 'Technical Estimator' },
+            'coo': { name: 'Chief Operating Officer' },
+            'director': { name: 'Executive Director' }
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkUserSession();
+        });
+
+        function checkUserSession() {
+            const userData = sessionStorage.getItem('ebtracker_user');
+            
+            if (!userData) {
+                document.getElementById('unauthorizedAccess').style.display = 'block';
+                return;
+            }
+            
+            try {
+                currentUser = JSON.parse(userData);
+                currentUserRole = currentUser.role;
+                
+                document.getElementById('workflowApp').style.display = 'block';
+                document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
+                document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
+                
+                // Hide 'New Proposal' for non-BDM roles
+                document.getElementById('nav-proposals').style.display = (currentUserRole === 'bdm') ? 'block' : 'none';
+                
+                showDashboard();
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+                document.getElementById('unauthorizedAccess').style.display = 'block';
+            }
+        }
+
+        function redirectToMain() {
+            sessionStorage.removeItem('ebtracker_user');
+            window.close();
+        }
+
+        function showDashboard() {
+            setActiveNav('nav-dashboard');
+            
+            switch (currentUserRole) {
+                case 'bdm':
+                    renderBdmDashboard();
+                    break;
+                case 'estimator':
+                    renderEstimatorDashboard();
+                    break;
+                case 'coo':
+                    renderCooDashboard();
+                    break;
+                case 'director':
+                    renderDirectorDashboard();
+                    break;
+                default:
+                    document.getElementById('mainContent').innerHTML = '<h1>Error: Role not found.</h1>';
+            }
+        }
+
+        function setActiveNav(activeId) {
+            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+            document.getElementById(activeId).classList.add('active');
+        }
+
+        function renderBdmDashboard() {
+            loadProposalsData().then(proposals => {
+                const myProposals = proposals.filter(p => p.createdBy === currentUser.uid);
+                
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="dashboard-stats">
+                        <div class="stat-card"><div class="stat-number">${myProposals.length}</div><div class="stat-label">My Proposals</div></div>
+                        <div class="stat-card"><div class="stat-number">${myProposals.filter(p => p.status === 'approved').length}</div><div class="stat-label">Approved</div></div>
+                        <div class="stat-card"><div class="stat-number">${myProposals.filter(p => p.status === 'pending').length}</div><div class="stat-label">Pending Review</div></div>
+                        <div class="stat-card"><div class="stat-number">${myProposals.filter(p => p.status === 'ready').length}</div><div class="stat-label">Ready for Client</div></div>
+                    </div>
+
+                    <div class="action-items">
+                        <h3>Quick Actions</h3>
+                        <div class="action-item">
+                            <div class="action-content">
+                                <strong>Create New Proposal</strong>
+                                <div class="action-meta">Start a new project proposal and initiate the approval workflow</div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-primary" onclick="showProposalForm()">Create Proposal</button>
+                            </div>
+                        </div>
+                        ${myProposals.filter(p => p.status === 'ready').map(proposal => `
+                            <div class="action-item">
+                                <div class="action-content">
+                                    <strong>Submit ${proposal.projectName} to Client</strong>
+                                    <div class="action-meta">Status: Approved by Director. Ready for client submission.</div>
+                                </div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-success" onclick="submitToClient('${proposal.id}')">Submit to Client</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            });
+        }
+
+        function renderEstimatorDashboard() {
+            loadProposalsData().then(proposals => {
+                const pendingEstimations = proposals.filter(p => p.status === 'pending_estimation');
+                
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="dashboard-stats">
+                        <div class="stat-card"><div class="stat-number">${pendingEstimations.length}</div><div class="stat-label">Pending Estimations</div></div>
+                        <div class="stat-card"><div class="stat-number">${proposals.filter(p => p.estimatedBy === currentUser.uid).length}</div><div class="stat-label">My Estimations</div></div>
+                        <div class="stat-card"><div class="stat-number">2.5</div><div class="stat-label">Avg. Days</div></div>
+                        <div class="stat-card"><div class="stat-number">95%</div><div class="stat-label">Accuracy</div></div>
+                    </div>
+
+                    <div class="action-items">
+                        <h3>Pending Estimations</h3>
+                        ${pendingEstimations.length > 0 ? pendingEstimations.map(proposal => `
+                            <div class="action-item">
+                                <div class="action-content">
+                                    <strong>Estimate ${proposal.projectName}</strong>
+                                    <div class="action-meta">Client: ${proposal.clientCompany} | Type: ${proposal.projectType} | Priority: ${proposal.priority}</div>
+                                </div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-primary" onclick="showEstimationForm('${proposal.id}')">Start Estimation</button>
+                                    <button class="btn btn-outline" onclick="viewProposal('${proposal.id}')">View Details</button>
+                                </div>
+                            </div>
+                        `).join('') : '<p>No pending estimations at this time.</p>'}
+                    </div>
+                `;
+            });
+        }
+
+        function renderCooDashboard() {
+            loadProposalsData().then(proposals => {
+                const pendingPricing = proposals.filter(p => p.status === 'pending_pricing');
+                
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="dashboard-stats">
+                        <div class="stat-card"><div class="stat-number">${pendingPricing.length}</div><div class="stat-label">Pending Pricing</div></div>
+                        <div class="stat-card"><div class="stat-number">28%</div><div class="stat-label">Avg. Margin</div></div>
+                        <div class="stat-card"><div class="stat-number">$2.5M</div><div class="stat-label">Q3 Revenue</div></div>
+                        <div class="stat-card"><div class="stat-number">8</div><div class="stat-label">High-Margin Projects</div></div>
+                    </div>
+
+                    <div class="action-items">
+                        <h3>Pending Pricing Approvals</h3>
+                        ${pendingPricing.length > 0 ? pendingPricing.map(proposal => `
+                            <div class="action-item">
+                                <div class="action-content">
+                                    <strong>Set Pricing for ${proposal.projectName}</strong>
+                                    <div class="action-meta">Client: ${proposal.clientCompany} | Estimated Hours: ${proposal.estimation?.totalHours || 'N/A'} | Country: ${proposal.country}</div>
+                                </div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-primary" onclick="showPricingForm('${proposal.id}')">Set Pricing</button>
+                                    <button class="btn btn-outline" onclick="viewProposal('${proposal.id}')">Review Details</button>
+                                </div>
+                            </div>
+                        `).join('') : '<p>No pending pricing approvals at this time.</p>'}
+                    </div>
+                `;
+            });
+        }
+
+        function renderDirectorDashboard() {
+            loadProposalsData().then(proposals => {
+                const pendingApproval = proposals.filter(p => p.status === 'pending_director_approval');
+                const totalValue = proposals.reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
+                
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="dashboard-stats">
+                        <div class="stat-card"><div class="stat-number">${(totalValue/1000000).toFixed(1)}M</div><div class="stat-label">Pipeline Value</div></div>
+                        <div class="stat-card"><div class="stat-number">72%</div><div class="stat-label">Win Rate</div></div>
+                        <div class="stat-card"><div class="stat-number">31%</div><div class="stat-label">Avg. Margin</div></div>
+                        <div class="stat-card"><div class="stat-number">${pendingApproval.length}</div><div class="stat-label">Pending Approval</div></div>
+                    </div>
+
+                    <div class="action-items">
+                        <h3>Executive Approvals Required</h3>
+                        ${pendingApproval.length > 0 ? pendingApproval.map(proposal => `
+                            <div class="action-item">
+                                <div class="action-content">
+                                    <strong>Final Approval for ${proposal.projectName}</strong>
+                                    <div class="action-meta">Client: ${proposal.clientCompany} | Value: ${proposal.pricing?.quoteValue?.toLocaleString() || 'N/A'} | Margin: ${proposal.pricing?.margin || 'N/A'}%</div>
+                                </div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-success" onclick="showDirectorApproval('${proposal.id}')">Review & Approve</button>
+                                    <button class="btn btn-outline" onclick="viewProposal('${proposal.id}')">View Details</button>
+                                </div>
+                            </div>
+                        `).join('') : '<p>No proposals pending executive approval at this time.</p>'}
+                    </div>
+                `;
+            });
+        }
+
+        async function loadProposalsData() {
+            try {
+                const snapshot = await db.collection('proposals').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                console.error('Error loading proposals:', error);
+                return [];
+            }
+        }
+
+        function showProposalForm() {
+            setActiveNav('nav-proposals');
+            
+            document.getElementById('mainContent').innerHTML = `
+                <div style="margin-bottom: 2rem;">
+                    <h1>Create New Proposal</h1>
+                    <p style="color: var(--text-light);">Start a new project proposal workflow</p>
+                </div>
+
+                <form onsubmit="submitProposal(event)" style="background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label for="projectName">Project Name</label>
+                            <input type="text" id="projectName" class="form-control" required placeholder="Enter project name">
+                        </div>
+                        <div class="form-group">
+                            <label for="projectType">Project Type</label>
+                            <select id="projectType" class="form-control" required>
+                                <option value="">Select Type</option>
+                                <option value="Industrial">Industrial HVAC</option>
+                                <option value="Commercial">Commercial HVAC</option>
+                                <option value="Cooling">Cooling Systems</option>
+                                <option value="Ventilation">Ventilation Systems</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="clientCompany">Client Company</label>
+                            <input type="text" id="clientCompany" class="form-control" required placeholder="Enter client company name">
+                        </div>
+                        <div class="form-group">
+                            <label for="country">Country</label>
+                            <select id="country" class="form-control" required>
+                                <option value="">Select Country</option>
+                                <option value="Australia">Australia</option>
+                                <option value="USA">USA</option>
+                                <option value="Canada">Canada</option>
+                                <option value="UK">UK</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="priority">Priority Level</label>
+                            <select id="priority" class="form-control" required>
+                                <option value="">Select Priority</option>
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeline">Expected Timeline</label>
+                            <select id="timeline" class="form-control" required>
+                                <option value="">Select Timeline</option>
+                                <option value="1-3 months">1-3 months</option>
+                                <option value="3-6 months">3-6 months</option>
+                                <option value="6-12 months">6-12 months</option>
+                                <option value="12+ months">12+ months</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="scopeOfWork">Scope of Work</label>
+                        <textarea id="scopeOfWork" class="form-control" rows="4" required placeholder="Detailed description of project scope and requirements..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Project Documents</label>
+                        <div class="file-upload-area" onclick="document.getElementById('fileInput').click()">
+                            <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileSelect(event)">
+                            <p>Click to upload files or drag and drop</p>
+                            <p style="font-size: 0.9rem; color: var(--text-light);">Supported formats: PDF, DOC, XLS, images</p>
+                        </div>
+                        <div id="fileList" class="file-list"></div>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                        <button type="button" class="btn btn-outline" onclick="showDashboard()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit for Estimation</button>
+                    </div>
+                </form>
+            `;
+
+            setupFileUpload();
+        }
+
+        function setupFileUpload() {
+            const uploadArea = document.querySelector('.file-upload-area');
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files);
+                handleFiles(files);
+            });
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            files.forEach(file => {
+                const fileId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const fileObj = {
+                    id: fileId,
+                    file: file,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    uploaded: false,
+                    url: null
+                };
+                
+                uploadedFiles.push(fileObj);
+                displayFile(fileObj);
+                uploadFileToFirebase(fileObj);
+            });
+        }
+
+        function displayFile(fileObj) {
+            const fileList = document.getElementById('fileList');
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.id = `file-${fileObj.id}`;
+            
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    <div class="file-icon">${getFileIcon(fileObj.type)}</div>
+                    <div>
+                        <div style="font-weight: 600;">${fileObj.name}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">${formatFileSize(fileObj.size)}</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="removeFile('${fileObj.id}')">Remove</button>
+                </div>
+            `;
+            
+            fileList.appendChild(fileItem);
+        }
+
+        async function uploadFileToFirebase(fileObj) {
+            try {
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child(`proposals/${currentUser.uid}/${fileObj.id}_${fileObj.name}`);
+                
+                const uploadTask = fileRef.put(fileObj.file);
+                
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        const progressBar = document.querySelector(`#file-${fileObj.id} .progress-fill`);
+                        if (progressBar) {
+                            progressBar.style.width = progress + '%';
+                        }
+                    },
+                    (error) => {
+                        console.error('Upload failed:', error);
+                        showErrorMessage('File upload failed: ' + error.message);
+                    },
+                    async () => {
+                        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                        fileObj.uploaded = true;
+                        fileObj.url = downloadURL;
+                        
+                        const fileItem = document.getElementById(`file-${fileObj.id}`);
+                        if (fileItem) {
+                            fileItem.querySelector('.progress-bar').innerHTML = '<span style="color: var(--success); font-size: 0.8rem;">✓ Uploaded</span>';
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                showErrorMessage('File upload error: ' + error.message);
+            }
+        }
+
+        function removeFile(fileId) {
+            uploadedFiles = uploadedFiles.filter(f => f.id !== fileId);
+            const fileItem = document.getElementById(`file-${fileId}`);
+            if (fileItem) {
+                fileItem.remove();
+            }
+        }
+
+        function getFileIcon(fileType) {
+            if (fileType.includes('pdf')) return 'PDF';
+            if (fileType.includes('image')) return 'IMG';
+            if (fileType.includes('word') || fileType.includes('document')) return 'DOC';
+            if (fileType.includes('excel') || fileType.includes('sheet')) return 'XLS';
+            return 'FILE';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function submitProposal(event) {
+            event.preventDefault();
+            
+            const formData = {
+                projectName: document.getElementById('projectName').value,
+                projectType: document.getElementById('projectType').value,
+                clientCompany: document.getElementById('clientCompany').value,
+                country: document.getElementById('country').value,
+                priority: document.getElementById('priority').value,
+                timeline: document.getElementById('timeline').value,
+                scopeOfWork: document.getElementById('scopeOfWork').value,
+                status: 'pending_estimation',
+                createdBy: currentUser.uid,
+                createdByName: currentUser.displayName || currentUser.email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                files: uploadedFiles.filter(f => f.uploaded).map(f => ({
+                    name: f.name,
+                    url: f.url,
+                    size: f.size,
+                    type: f.type
+                }))
+            };
+            
+            try {
+                await db.collection('proposals').add(formData);
+                showSuccessMessage('Proposal Submitted Successfully!', 
+                    `${formData.projectName} for ${formData.clientCompany} has been submitted to the estimation team.`);
+                
+                // Reset form
+                uploadedFiles = [];
+                showDashboard();
+            } catch (error) {
+                console.error('Error submitting proposal:', error);
+                showErrorMessage('Error submitting proposal: ' + error.message);
+            }
+        }
+
+        function showEstimationForm(proposalId) {
+            loadProposalById(proposalId).then(proposal => {
+                if (!proposal) return;
+                
+                showModal(`
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <h2 style="color: var(--primary-blue);">PROJECT HOUR ESTIMATION</h2>
+                        <p style="color: var(--text-light);">${proposal.projectName} - ${proposal.clientCompany}</p>
+                    </div>
+                    
+                    <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem;">
+                        <h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Overview</h4>
+                        <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                            <div><strong>Client:</strong> ${proposal.clientCompany}</div>
+                            <div><strong>Type:</strong> ${proposal.projectType}</div>
+                            <div><strong>Location:</strong> ${proposal.country}</div>
+                            <div><strong>Priority:</strong> ${proposal.priority}</div>
+                            <div><strong>Scope:</strong> ${proposal.scopeOfWork}</div>
+                        </div>
+                    </div>
+                    
+                    <form onsubmit="submitEstimation(event, '${proposalId}')" style="display: grid; gap: 1.5rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="designHours">Design Hours</label>
+                                <input type="number" id="designHours" class="form-control" placeholder="80" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="installHours">Installation Hours</label>
+                                <input type="number" id="installHours" class="form-control" placeholder="160" required>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="testingHours">Testing & Commissioning</label>
+                                <input type="number" id="testingHours" class="form-control" placeholder="40" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pmHours">Project Management</label>
+                                <input type="number" id="pmHours" class="form-control" placeholder="32" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="quoteType">Quote Type</label>
+                            <select id="quoteType" class="form-control" required>
+                                <option value="">Select Quote Type</option>
+                                <option value="Lump Sum">Lump Sum</option>
+                                <option value="Per Hour">Per Hour</option>
+                                <option value="Per Tonne">Per Tonne</option>
+                            </select>
+                        </div>
+                        
+                        <div style="background: var(--background); padding: 1rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--primary-blue); font-size: 1.2rem;">
+                                <span>Total Estimated Hours:</span>
+                                <span id="totalHours">0</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                            <button type="submit" class="btn btn-success">Submit Estimation</button>
+                        </div>
+                    </form>
+                `);
+                
+                // Add event listeners for total calculation
+                ['designHours', 'installHours', 'testingHours', 'pmHours'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', updateTotalHours);
+                });
+            });
+        }
+
+        function updateTotalHours() {
+            const total = ['designHours', 'installHours', 'testingHours', 'pmHours']
+                .reduce((sum, id) => sum + (parseInt(document.getElementById(id).value) || 0), 0);
+            document.getElementById('totalHours').textContent = total;
+        }
+
+        async function submitEstimation(event, proposalId) {
+            event.preventDefault();
+            
+            const estimation = {
+                designHours: parseInt(document.getElementById('designHours').value),
+                installHours: parseInt(document.getElementById('installHours').value),
+                testingHours: parseInt(document.getElementById('testingHours').value),
+                pmHours: parseInt(document.getElementById('pmHours').value),
+                totalHours: parseInt(document.getElementById('totalHours').textContent),
+                quoteType: document.getElementById('quoteType').value,
+                estimatedBy: currentUser.uid,
+                estimatedByName: currentUser.displayName || currentUser.email,
+                estimatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            try {
+                await db.collection('proposals').doc(proposalId).update({
+                    estimation: estimation,
+                    status: 'pending_pricing'
+                });
+                
+                closeModal();
+                showSuccessMessage('Estimation Completed!', 
+                    'Project estimation has been completed and forwarded to COO for pricing approval.');
+                showDashboard();
+            } catch (error) {
+                console.error('Error submitting estimation:', error);
+                showErrorMessage('Error submitting estimation: ' + error.message);
+            }
+        }
+
+        function showPricingForm(proposalId) {
+            loadProposalById(proposalId).then(proposal => {
+                if (!proposal || !proposal.estimation) return;
+                
+                showModal(`
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <h2 style="color: var(--primary-blue);">COO PRICING APPROVAL</h2>
+                        <p style="color: var(--text-light);">${proposal.projectName} - ${proposal.clientCompany}</p>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Details</h4>
+                            <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                                <div><strong>Client:</strong> ${proposal.clientCompany}</div>
+                                <div><strong>Type:</strong> ${proposal.projectType}</div>
+                                <div><strong>Location:</strong> ${proposal.country}</div>
+                                <div><strong>Estimated By:</strong> ${proposal.estimation.estimatedByName}</div>
+                            </div>
+                        </div>
+                        <div style="background: #FEF3CD; padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--warning); margin-bottom: 1rem;">Hour Breakdown</h4>
+                            <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                                <div style="display: flex; justify-content: space-between;"><span>Design:</span><strong>${proposal.estimation.designHours} hrs</strong></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Installation:</span><strong>${proposal.estimation.installHours} hrs</strong></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Testing:</span><strong>${proposal.estimation.testingHours} hrs</strong></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Project Mgmt:</span><strong>${proposal.estimation.pmHours} hrs</strong></div>
+                                <hr style="margin: 0.5rem 0;">
+                                <div style="display: flex; justify-content: space-between; font-weight: bold;"><span>Total Hours:</span><strong>${proposal.estimation.totalHours} hrs</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form onsubmit="submitPricing(event, '${proposalId}')" style="display: grid; gap: 1.5rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="hourlyRate">Hourly Rate (${getCurrencySymbol(proposal.country)})</label>
+                                <input type="number" id="hourlyRate" class="form-control" value="${getDefaultRate(proposal.country)}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="quoteValue">Quote Value (${getCurrencySymbol(proposal.country)})</label>
+                                <input type="number" id="quoteValue" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="margin">Target Margin (%)</label>
+                            <input type="number" id="margin" class="form-control" value="28" required>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                            <button type="submit" class="btn btn-success">Approve Pricing</button>
+                        </div>
+                    </form>
+                `);
+                
+                // Auto-calculate quote value when hourly rate changes
+                document.getElementById('hourlyRate').addEventListener('input', () => {
+                    const rate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+                    const totalHours = proposal.estimation.totalHours;
+                    const laborCost = rate * totalHours;
+                    const materialsCost = laborCost * 1.3; // Estimate materials as 130% of labor
+                    const totalCost = laborCost + materialsCost;
+                    const margin = parseFloat(document.getElementById('margin').value) || 28;
+                    const quoteValue = totalCost / (1 - margin/100);
+                    
+                    document.getElementById('quoteValue').value = Math.round(quoteValue);
+                });
+                
+                // Trigger initial calculation
+                document.getElementById('hourlyRate').dispatchEvent(new Event('input'));
+            });
+        }
+
+        async function submitPricing(event, proposalId) {
+            event.preventDefault();
+            
+            const pricing = {
+                hourlyRate: parseFloat(document.getElementById('hourlyRate').value),
+                quoteValue: parseFloat(document.getElementById('quoteValue').value),
+                margin: parseFloat(document.getElementById('margin').value),
+                pricedBy: currentUser.uid,
+                pricedByName: currentUser.displayName || currentUser.email,
+                pricedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            try {
+                await db.collection('proposals').doc(proposalId).update({
+                    pricing: pricing,
+                    status: 'pending_director_approval'
+                });
+                
+                closeModal();
+                showSuccessMessage('Pricing Approved!', 
+                    'Pricing has been approved and the proposal is now forwarded to the Executive Director for final approval.');
+                showDashboard();
+            } catch (error) {
+                console.error('Error submitting pricing:', error);
+                showErrorMessage('Error submitting pricing: ' + error.message);
+            }
+        }
+
+        function showDirectorApproval(proposalId) {
+            loadProposalById(proposalId).then(proposal => {
+                if (!proposal || !proposal.pricing) return;
+                
+                showModal(`
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <h2 style="color: var(--primary-blue);">EXECUTIVE DIRECTOR APPROVAL</h2>
+                        <p style="color: var(--text-light);">${proposal.projectName} - ${proposal.clientCompany}</p>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Summary</h4>
+                            <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                                <div><strong>Client:</strong> ${proposal.clientCompany}</div>
+                                <div><strong>Type:</strong> ${proposal.projectType}</div>
+                                <div><strong>Location:</strong> ${proposal.country}</div>
+                                <div><strong>Timeline:</strong> ${proposal.timeline}</div>
+                                <div><strong>Priority:</strong> ${proposal.priority}</div>
+                            </div>
+                        </div>
+                        <div style="background: #FEF3CD; padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--warning); margin-bottom: 1rem;">Financial Analysis</h4>
+                            <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                                <div style="display: flex; justify-content: space-between;"><span>Quote Value:</span><strong>${getCurrencySymbol(proposal.country)}${proposal.pricing.quoteValue?.toLocaleString()}</strong></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Total Hours:</span><strong>${proposal.estimation.totalHours} hrs</strong></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Hourly Rate:</span><strong>${getCurrencySymbol(proposal.country)}${proposal.pricing.hourlyRate}</strong></div>
+                                <hr style="margin: 0.5rem 0;">
+                                <div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--success);"><span>Profit Margin:</span><strong>${proposal.pricing.margin}%</strong></div>
+                            </div>
+                        </div>
+                        <div style="background: #D5F4E6; padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--success); margin-bottom: 1rem;">Risk Assessment</h4>
+                            <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                                <div><strong>Technical Risk:</strong> ${getRiskLevel(proposal.projectType)}</div>
+                                <div><strong>Client Risk:</strong> Low</div>
+                                <div><strong>Financial Risk:</strong> Low</div>
+                                <div><strong>Timeline Risk:</strong> ${getTimelineRisk(proposal.timeline)}</div>
+                                <div><strong>Overall Risk:</strong> <span style="color: var(--success);">Low-Medium</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form onsubmit="submitDirectorApproval(event, '${proposalId}')" style="display: grid; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label for="approvalNotes">Executive Comments (Optional)</label>
+                            <textarea id="approvalNotes" class="form-control" rows="3" placeholder="Add any strategic notes or conditions for this approval..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                            <button type="button" onclick="requestRevision('${proposalId}')" class="btn btn-warning">Request Revision</button>
+                            <button type="submit" class="btn btn-success">Grant Executive Approval</button>
+                        </div>
+                    </form>
+                `);
+            });
+        }
+
+        async function submitDirectorApproval(event, proposalId) {
+            event.preventDefault();
+            
+            const approval = {
+                approvedBy: currentUser.uid,
+                approvedByName: currentUser.displayName || currentUser.email,
+                approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                approvalNotes: document.getElementById('approvalNotes').value
+            };
+            
+            try {
+                await db.collection('proposals').doc(proposalId).update({
+                    directorApproval: approval,
+                    status: 'ready'
+                });
+                
+                closeModal();
+                showSuccessMessage('Executive Approval Granted!', 
+                    'The proposal has received executive approval and is now ready for client submission.');
+                showDashboard();
+            } catch (error) {
+                console.error('Error submitting approval:', error);
+                showErrorMessage('Error submitting approval: ' + error.message);
+            }
+        }
+
+        async function requestRevision(proposalId) {
+            try {
+                await db.collection('proposals').doc(proposalId).update({
+                    status: 'revision_requested',
+                    revisionRequestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    revisionRequestedBy: currentUser.uid
+                });
+                
+                closeModal();
+                showSuccessMessage('Revision Requested', 
+                    'A revision request has been sent back to the previous stage.');
+                showDashboard();
+            } catch (error) {
+                console.error('Error requesting revision:', error);
+                showErrorMessage('Error requesting revision: ' + error.message);
+            }
+        }
+
+        async function submitToClient(proposalId) {
+            try {
+                await db.collection('proposals').doc(proposalId).update({
+                    status: 'submitted_to_client',
+                    submittedToClientAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    submittedBy: currentUser.uid
+                });
+                
+                showSuccessMessage('Submitted to Client!', 
+                    'The proposal has been successfully submitted to the client.');
+                showDashboard();
+            } catch (error) {
+                console.error('Error submitting to client:', error);
+                showErrorMessage('Error submitting to client: ' + error.message);
+            }
+        }
+
+        async function loadProposalById(proposalId) {
+            try {
+                const doc = await db.collection('proposals').doc(proposalId).get();
+                return doc.exists ? { id: doc.id, ...doc.data() } : null;
+            } catch (error) {
+                console.error('Error loading proposal:', error);
+                return null;
+            }
+        }
+
+        function showModal(content) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    ${content}
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeModal() {
+            document.querySelectorAll('.modal-overlay').forEach(modal => modal.remove());
+        }
+
+        function showSuccessMessage(title, message) {
+            showModal(`
+                <div style="text-align: center;">
+                    <div style="color: var(--success); font-size: 3rem; margin-bottom: 1rem;">✓</div>
+                    <h2 style="color: var(--success); margin-bottom: 1rem;">${title}</h2>
+                    <p style="color: var(--text-dark); margin-bottom: 2rem; line-height: 1.6;">${message}</p>
+                    <button onclick="closeModal()" class="btn btn-primary">Continue</button>
+                </div>
+            `);
+        }
+
+        function showErrorMessage(message) {
+            showModal(`
+                <div style="text-align: center;">
+                    <div style="color: var(--danger); font-size: 3rem; margin-bottom: 1rem;">✗</div>
+                    <h2 style="color: var(--danger); margin-bottom: 1rem;">Error</h2>
+                    <p style="color: var(--text-dark); margin-bottom: 2rem; line-height: 1.6;">${message}</p>
+                    <button onclick="closeModal()" class="btn btn-primary">OK</button>
+                </div>
+            `);
+        }
+
+        // Helper functions
+        function getCurrencySymbol(country) {
+            const currencies = {
+                'Australia': 'AUD ,
+                'USA': 'USD ,
+                'Canada': 'CAD ,
+                'UK': 'GBP £'
+            };
+            return currencies[country] || ';
+        }
+
+        function getDefaultRate(country) {
+            const rates = {
+                'Australia': 130,
+                'USA': 95,
+                'Canada': 125,
+                'UK': 85
+            };
+            return rates[country] || 100;
+        }
+
+        function getRiskLevel(projectType) {
+            const risks = {
+                'Industrial': 'Medium',
+                'Commercial': 'Low',
+                'Cooling': 'Medium',
+                'Ventilation': 'Low'
+            };
+            return risks[projectType] || 'Low';
+        }
+
+        function getTimelineRisk(timeline) {
+            const risks = {
+                '1-3 months': 'High',
+                '3-6 months': 'Medium',
+                '6-12 months': 'Low',
+                '12+ months': 'Low'
+            };
+            return risks[timeline] || 'Medium';
+        }
+
+        function showMyProposals() {
+            setActiveNav('nav-my-proposals');
+            loadProposalsData().then(proposals => {
+                const myProposals = proposals.filter(p => p.createdBy === currentUser.uid);
+                displayProposalsList('My Proposals', myProposals);
+            });
+        }
+
+        function showPendingTasks() {
+            setActiveNav('nav-pending');
+            loadProposalsData().then(proposals => {
+                let pendingProposals = [];
+                
+                switch (currentUserRole) {
+                    case 'estimator':
+                        pendingProposals = proposals.filter(p => p.status === 'pending_estimation');
+                        break;
+                    case 'coo':
+                        pendingProposals = proposals.filter(p => p.status === 'pending_pricing');
+                        break;
+                    case 'director':
+                        pendingProposals = proposals.filter(p => p.status === 'pending_director_approval');
+                        break;
+                    case 'bdm':
+                        pendingProposals = proposals.filter(p => p.status === 'ready' && p.createdBy === currentUser.uid);
+                        break;
+                }
+                
+                displayProposalsList('Pending Tasks', pendingProposals);
+            });
+        }
+
+        function showAllProposals() {
+            setActiveNav('nav-all-proposals');
+            loadProposalsData().then(proposals => {
+                displayProposalsList('All Proposals', proposals);
+            });
+        }
+
+        function displayProposalsList(title, proposals) {
+            const statusColors = {
+                'pending_estimation': 'var(--warning)',
+                'pending_pricing': 'var(--primary-blue)',
+                'pending_director_approval': 'var(--danger)',
+                'ready': 'var(--success)',
+                'submitted_to_client': '#6c757d',
+                'revision_requested': 'var(--danger)'
+            };
+
+            const statusLabels = {
+                'pending_estimation': 'Pending Estimation',
+                'pending_pricing': 'Pending Pricing',
+                'pending_director_approval': 'Pending Director Approval',
+                'ready': 'Ready for Client',
+                'submitted_to_client': 'Submitted to Client',
+                'revision_requested': 'Revision Requested'
+            };
+
+            document.getElementById('mainContent').innerHTML = `
+                <div style="margin-bottom: 2rem;">
+                    <h1>${title}</h1>
+                    <p style="color: var(--text-light);">Total: ${proposals.length} proposal${proposals.length !== 1 ? 's' : ''}</p>
+                </div>
+
+                <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                    ${proposals.length > 0 ? proposals.map(proposal => `
+                        <div class="action-item" style="margin-bottom: 1.5rem;">
+                            <div class="action-content" style="flex: 1;">
+                                <strong>${proposal.projectName}</strong>
+                                <div class="action-meta">
+                                    <div style="margin: 0.5rem 0;">
+                                        <span><strong>Client:</strong> ${proposal.clientCompany}</span> | 
+                                        <span><strong>Type:</strong> ${proposal.projectType}</span> | 
+                                        <span><strong>Country:</strong> ${proposal.country}</span>
+                                    </div>
+                                    <div style="margin: 0.5rem 0;">
+                                        <span><strong>Priority:</strong> ${proposal.priority}</span> | 
+                                        <span><strong>Timeline:</strong> ${proposal.timeline}</span> | 
+                                        <span><strong>Created:</strong> ${proposal.createdAt ? proposal.createdAt.toDate().toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                    <div style="margin-top: 0.5rem;">
+                                        <span style="background: ${statusColors[proposal.status]}; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; font-weight: bold;">
+                                            ${statusLabels[proposal.status] || proposal.status}
+                                        </span>
+                                    </div>
+                                    ${proposal.files && proposal.files.length > 0 ? `
+                                        <div style="margin-top: 0.5rem;">
+                                            <span style="color: var(--text-light); font-size: 0.8rem;">
+                                                📎 ${proposal.files.length} file${proposal.files.length !== 1 ? 's' : ''} attached
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-outline btn-sm" onclick="viewProposal('${proposal.id}')">View Details</button>
+                                ${getActionButton(proposal)}
+                            </div>
+                        </div>
+                    `).join('') : '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No proposals found.</p>'}
+                </div>
+            `;
+        }
+
+        function getActionButton(proposal) {
+            switch (proposal.status) {
+                case 'pending_estimation':
+                    return currentUserRole === 'estimator' ? 
+                        `<button class="btn btn-primary btn-sm" onclick="showEstimationForm('${proposal.id}')">Estimate</button>` : '';
+                case 'pending_pricing':
+                    return currentUserRole === 'coo' ? 
+                        `<button class="btn btn-primary btn-sm" onclick="showPricingForm('${proposal.id}')">Set Pricing</button>` : '';
+                case 'pending_director_approval':
+                    return currentUserRole === 'director' ? 
+                        `<button class="btn btn-primary btn-sm" onclick="showDirectorApproval('${proposal.id}')">Approve</button>` : '';
+                case 'ready':
+                    return (currentUserRole === 'bdm' && proposal.createdBy === currentUser.uid) ? 
+                        `<button class="btn btn-success btn-sm" onclick="submitToClient('${proposal.id}')">Submit to Client</button>` : '';
+                default:
+                    return '';
+            }
+        }
+
+        function viewProposal(proposalId) {
+            loadProposalById(proposalId).then(proposal => {
+                if (!proposal) return;
+                
+                showModal(`
+                    <div style="margin-bottom: 2rem;">
+                        <h2 style="color: var(--primary-blue);">${proposal.projectName}</h2>
+                        <p style="color: var(--text-light);">${proposal.clientCompany} - ${proposal.country}</p>
+                    </div>
+                    
+                    <div style="display: grid; gap: 1.5rem;">
+                        <div style="background: var(--light-blue); padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--primary-blue); margin-bottom: 1rem;">Project Information</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
+                                <div><strong>Project Type:</strong> ${proposal.projectType}</div>
+                                <div><strong>Priority:</strong> ${proposal.priority}</div>
+                                <div><strong>Timeline:</strong> ${proposal.timeline}</div>
+                                <div><strong>Created By:</strong> ${proposal.createdByName}</div>
+                                <div><strong>Created:</strong> ${proposal.createdAt ? proposal.createdAt.toDate().toLocaleString() : 'N/A'}</div>
+                                <div><strong>Status:</strong> 
+                                    <span style="background: var(--primary-blue); color: white; padding: 0.2rem 0.6rem; border-radius: 10px; font-size: 0.8rem;">
+                                        ${proposal.status.replace(/_/g, ' ').toUpperCase()}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: var(--background); padding: 1.5rem; border-radius: 10px;">
+                            <h4 style="color: var(--text-dark); margin-bottom: 1rem;">Scope of Work</h4>
+                            <p style="line-height: 1.6;">${proposal.scopeOfWork}</p>
+                        </div>
+                        
+                        ${proposal.estimation ? `
+                            <div style="background: #FEF3CD; padding: 1.5rem; border-radius: 10px;">
+                                <h4 style="color: var(--warning); margin-bottom: 1rem;">Estimation Details</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
+                                    <div><strong>Design Hours:</strong> ${proposal.estimation.designHours}</div>
+                                    <div><strong>Installation Hours:</strong> ${proposal.estimation.installHours}</div>
+                                    <div><strong>Testing Hours:</strong> ${proposal.estimation.testingHours}</div>
+                                    <div><strong>Project Mgmt Hours:</strong> ${proposal.estimation.pmHours}</div>
+                                    <div><strong>Total Hours:</strong> ${proposal.estimation.totalHours}</div>
+                                    <div><strong>Quote Type:</strong> ${proposal.estimation.quoteType}</div>
+                                    <div><strong>Estimated By:</strong> ${proposal.estimation.estimatedByName}</div>
+                                    <div><strong>Estimated:</strong> ${proposal.estimation.estimatedAt ? proposal.estimation.estimatedAt.toDate().toLocaleString() : 'N/A'}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${proposal.pricing ? `
+                            <div style="background: #D5F4E6; padding: 1.5rem; border-radius: 10px;">
+                                <h4 style="color: var(--success); margin-bottom: 1rem;">Pricing Information</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
+                                    <div><strong>Hourly Rate:</strong> ${getCurrencySymbol(proposal.country)}${proposal.pricing.hourlyRate}</div>
+                                    <div><strong>Quote Value:</strong> ${getCurrencySymbol(proposal.country)}${proposal.pricing.quoteValue?.toLocaleString()}</div>
+                                    <div><strong>Margin:</strong> ${proposal.pricing.margin}%</div>
+                                    <div><strong>Priced By:</strong> ${proposal.pricing.pricedByName}</div>
+                                    <div><strong>Priced:</strong> ${proposal.pricing.pricedAt ? proposal.pricing.pricedAt.toDate().toLocaleString() : 'N/A'}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${proposal.directorApproval ? `
+                            <div style="background: #E8F5E8; padding: 1.5rem; border-radius: 10px;">
+                                <h4 style="color: var(--success); margin-bottom: 1rem;">Director Approval</h4>
+                                <div style="font-size: 0.9rem;">
+                                    <div><strong>Approved By:</strong> ${proposal.directorApproval.approvedByName}</div>
+                                    <div><strong>Approved:</strong> ${proposal.directorApproval.approvedAt ? proposal.directorApproval.approvedAt.toDate().toLocaleString() : 'N/A'}</div>
+                                    ${proposal.directorApproval.approvalNotes ? `<div style="margin-top: 0.5rem;"><strong>Notes:</strong> ${proposal.directorApproval.approvalNotes}</div>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${proposal.files && proposal.files.length > 0 ? `
+                            <div style="background: var(--background); padding: 1.5rem; border-radius: 10px;">
+                                <h4 style="color: var(--text-dark); margin-bottom: 1rem;">Project Files</h4>
+                                <div style="display: grid; gap: 0.5rem;">
+                                    ${proposal.files.map(file => `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 8px; border: 1px solid var(--border);">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <div class="file-icon">${getFileIcon(file.type)}</div>
+                                                <div>
+                                                    <div style="font-weight: 600;">${file.name}</div>
+                                                    <div style="font-size: 0.8rem; color: var(--text-light);">${formatFileSize(file.size)}</div>
+                                                </div>
+                                            </div>
+                                            <a href="${file.url}" target="_blank" class="btn btn-outline btn-sm" style="text-decoration: none;">Download</a>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <button onclick="closeModal()" class="btn btn-primary">Close</button>
+                    </div>
+                `);
+            });
+        }
+
+        // Initialize the workflow app
+        console.log('EBTracker Workflow System Loaded');
+    </script>
+</body>
+</html>">
