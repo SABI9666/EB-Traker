@@ -348,6 +348,21 @@
             border-right: 4px solid var(--primary-blue);
         }
 
+        .nav-menu .nav-submenu {
+            padding-left: 2rem;
+            background: var(--light-blue);
+            display: none;
+        }
+
+        .nav-menu .nav-submenu.active {
+            display: block;
+        }
+
+        .nav-menu .nav-submenu a {
+            padding: 0.8rem 2rem;
+            font-size: 0.9rem;
+        }
+
         .main-content {
             flex: 1;
             padding: 2rem;
@@ -486,6 +501,101 @@
             font-size: 0.9rem;
         }
 
+        /* File Upload Styles */
+        .upload-area {
+            border: 2px dashed var(--primary-blue);
+            border-radius: 10px;
+            padding: 3rem 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            background: var(--light-blue);
+            border-color: var(--dark-blue);
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary-blue);
+            margin-bottom: 1rem;
+        }
+
+        .file-list {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--background);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+            background: var(--light-blue);
+        }
+
+        .file-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+            color: var(--primary-blue);
+        }
+
+        .file-details h4 {
+            color: var(--text-dark);
+            margin-bottom: 0.2rem;
+        }
+
+        .file-meta {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-view {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-delete {
+            background: var(--danger);
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .login-container {
                 flex-direction: column;
@@ -520,10 +630,17 @@
                 width: 100%;
                 justify-content: flex-end;
             }
+
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Login page remains the same -->
     <div id="loginPage" class="login-page">
         <div class="login-container">
             <div class="login-left">
@@ -607,6 +724,7 @@
         </div>
     </div>
 
+    <!-- App container with enhanced navigation -->
     <div id="appContainer" class="app-container">
         <header class="header">
             <div class="header-content">
@@ -631,7 +749,13 @@
                     <li><a href="#" onclick="showDashboard()" class="active" id="nav-dashboard">📊 Dashboard</a></li>
                     <li><a href="#" onclick="showProposals()" id="nav-proposals">📄 Proposals</a></li>
                     <li><a href="#" onclick="showWorkflow()" id="nav-workflow">🔄 Workflow</a></li>
-                    <li><a href="#" onclick="showFiles()" id="nav-files">📁 Files</a></li>
+                    <li>
+                        <a href="#" onclick="togglePortalMenu()" id="nav-portal">📁 Portal</a>
+                        <ul class="nav-submenu" id="portal-submenu">
+                            <li><a href="#" onclick="showFileUpload()">📤 Upload Files</a></li>
+                            <li><a href="#" onclick="showFiles()">👁️ View Files</a></li>
+                        </ul>
+                    </li>
                     <li><a href="#" onclick="showReports()" id="nav-reports">📈 Reports</a></li>
                 </ul>
             </nav>
@@ -665,19 +789,11 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // API Configuration with better detection
+        // API Configuration
         function getApiBase() {
-            // For local development
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 return 'http://localhost:3000';
             }
-            
-            // For Vercel deployment
-            if (window.location.hostname.includes('vercel.app')) {
-                return window.location.origin;
-            }
-            
-            // For custom domains
             return window.location.origin;
         }
 
@@ -710,17 +826,11 @@
         let currentUserRole = '';
         let authToken = '';
 
-        // Enhanced API Helper Functions with debugging
+        // Enhanced API Helper Functions
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
             
-            console.log('API Call Debug:', {
-                endpoint,
-                fullUrl: url,
-                apiBase: API_BASE,
-                hasToken: !!authToken,
-                tokenLength: authToken ? authToken.length : 0
-            });
+            console.log('API Call:', { endpoint, url, hasToken: !!authToken });
             
             const defaultOptions = {
                 headers: {
@@ -739,35 +849,24 @@
             };
             
             try {
-                console.log('Making request to:', url);
-                console.log('Request options:', {
-                    method: finalOptions.method || 'GET',
-                    headers: finalOptions.headers,
-                    hasBody: !!finalOptions.body
-                });
-                
                 const response = await fetch(url, finalOptions);
                 
-                console.log('Response received:', {
+                console.log('Response:', {
                     status: response.status,
-                    statusText: response.statusText,
-                    contentType: response.headers.get('content-type'),
-                    url: response.url
+                    contentType: response.headers.get('content-type')
                 });
                 
-                // Check if response is HTML (error page)
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('text/html')) {
                     const htmlText = await response.text();
-                    console.error('Received HTML instead of JSON:', htmlText.substring(0, 200));
-                    throw new Error(`API returned HTML instead of JSON. Status: ${response.status}. This usually means the API endpoint doesn't exist.`);
+                    console.error('Received HTML:', htmlText.substring(0, 200));
+                    throw new Error(`API returned HTML instead of JSON. Status: ${response.status}. Endpoint may not exist.`);
                 }
                 
-                // Try to parse JSON
                 let data;
                 try {
                     const textResponse = await response.text();
-                    console.log('Raw response:', textResponse.substring(0, 500));
+                    console.log('Raw response:', textResponse.substring(0, 300));
                     data = JSON.parse(textResponse);
                 } catch (parseError) {
                     console.error('JSON parse error:', parseError);
@@ -775,26 +874,13 @@
                 }
                 
                 if (!response.ok) {
-                    console.error('API Error Response:', data);
                     throw new Error(data.error || `API request failed with status ${response.status}`);
                 }
                 
-                console.log('API Success:', data);
                 return data;
                 
             } catch (error) {
-                console.error('API call error:', {
-                    endpoint,
-                    url,
-                    error: error.message,
-                    stack: error.stack
-                });
-                
-                // Show user-friendly error messages
-                if (error.message.includes('Failed to fetch')) {
-                    throw new Error('Network error: Unable to connect to server. Check if the API is running.');
-                }
-                
+                console.error('API call error:', error);
                 throw error;
             }
         }
@@ -803,63 +889,23 @@
         async function testApiConnectivity() {
             console.log('Testing API connectivity...');
             
-            // Test if we can reach the base URL
-            try {
-                const response = await fetch(API_BASE);
-                console.log('Base URL test:', {
-                    status: response.status,
-                    contentType: response.headers.get('content-type')
-                });
-            } catch (error) {
-                console.error('Base URL unreachable:', error);
-            }
-            
-            // Test test endpoint
             try {
                 const response = await fetch(`${API_BASE}/api/test`);
-                console.log('Test endpoint test:', {
+                console.log('Test endpoint:', {
                     status: response.status,
                     contentType: response.headers.get('content-type')
                 });
                 
                 const text = await response.text();
-                console.log('Test response text:', text.substring(0, 200));
+                console.log('Test response:', text.substring(0, 200));
+                return true;
             } catch (error) {
-                console.error('Test endpoint unreachable:', error);
-            }
-            
-            // Test specific API endpoint
-            try {
-                const response = await fetch(`${API_BASE}/api/dashboard`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                console.log('Dashboard endpoint test:', {
-                    status: response.status,
-                    contentType: response.headers.get('content-type')
-                });
-                
-                const text = await response.text();
-                console.log('Dashboard response text:', text.substring(0, 200));
-            } catch (error) {
-                console.error('Dashboard endpoint unreachable:', error);
+                console.error('Test endpoint failed:', error);
+                return false;
             }
         }
 
-        // Add this to window for debugging
-        window.testApiConnectivity = testApiConnectivity;
-        window.debugApiCall = async (endpoint) => {
-            try {
-                const result = await apiCall(endpoint);
-                console.log('Debug result:', result);
-                return result;
-            } catch (error) {
-                console.error('Debug error:', error);
-                return error;
-            }
-        };
-
+        // Utility functions
         function showLoading() {
             document.getElementById('loadingSpinner').style.display = 'block';
         }
@@ -871,28 +917,36 @@
         function setActiveNav(navId) {
             document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
             document.getElementById(navId).classList.add('active');
+            
+            // Hide all submenus except the active one
+            document.querySelectorAll('.nav-submenu').forEach(sub => sub.classList.remove('active'));
+        }
+
+        // Portal menu toggle
+        function togglePortalMenu() {
+            const submenu = document.getElementById('portal-submenu');
+            submenu.classList.toggle('active');
+            setActiveNav('nav-portal');
         }
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             
-            // Auth state listener
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
                     try {
                         authToken = await user.getIdToken();
-                        console.log('Auth token obtained, length:', authToken.length);
+                        console.log('Auth token obtained');
                         
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
-                            console.log('User role:', currentUserRole);
                             showApp();
                         } else {
                             await auth.signOut();
-                            showError('Account Error', 'User data not found. Please contact administrator.');
+                            showMessage('Account Error: User data not found', 'error');
                         }
                     } catch (error) {
                         console.error('Error getting user data:', error);
@@ -908,7 +962,6 @@
         });
 
         function setupEventListeners() {
-            // Role selector
             document.querySelectorAll('.role-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
@@ -917,7 +970,6 @@
                 });
             });
 
-            // Forms
             document.getElementById('loginForm').addEventListener('submit', handleLogin);
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
         }
@@ -1045,12 +1097,6 @@
             document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
             
-            // Show/hide navigation based on role
-            if (currentUserRole !== 'bdm') {
-                const proposalsNav = document.getElementById('nav-proposals');
-                if (proposalsNav) proposalsNav.style.display = 'none';
-            }
-            
             showDashboard();
         }
 
@@ -1060,7 +1106,7 @@
             clearMessages();
         }
 
-        // Updated Dashboard Functions with better error handling
+        // Dashboard Functions
         async function showDashboard() {
             setActiveNav('nav-dashboard');
             showLoading();
@@ -1072,7 +1118,6 @@
                     hasToken: !!authToken
                 });
                 
-                // Test connectivity first
                 await testApiConnectivity();
                 
                 const dashboardData = await apiCall('dashboard');
@@ -1081,7 +1126,6 @@
             } catch (error) {
                 console.error('Dashboard error:', error);
                 
-                // Show detailed error information
                 let errorHtml = `
                     <div class="error-message">
                         <h3>Error Loading Dashboard</h3>
@@ -1091,37 +1135,21 @@
                             API Base: ${API_BASE}<br>
                             User Role: ${currentUserRole}<br>
                             Has Token: ${authToken ? 'Yes' : 'No'}<br>
-                            Token Length: ${authToken ? authToken.length : 0}<br>
-                            Current User: ${currentUser?.email || 'None'}<br>
-                            Browser: ${navigator.userAgent.substring(0, 100)}...
+                            Current User: ${currentUser?.email || 'None'}
                         </div>
                 `;
                 
-                // Add specific troubleshooting steps
                 if (error.message.includes('HTML instead of JSON')) {
                     errorHtml += `
                         <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px;">
-                            <h4>Troubleshooting Steps:</h4>
-                            <ol>
-                                <li>Check if your Vercel deployment is working</li>
-                                <li>Verify that the <code>/api/dashboard.js</code> file exists in your deployment</li>
-                                <li>Check Vercel function logs for errors</li>
-                                <li>Ensure environment variables are set correctly</li>
-                                <li>Try the test endpoint: <a href="${API_BASE}/api/test" target="_blank">${API_BASE}/api/test</a></li>
-                            </ol>
-                        </div>
-                    `;
-                } else if (error.message.includes('Network error')) {
-                    errorHtml += `
-                        <div style="margin-top: 1rem; padding: 1rem; background: #f8d7da; border-radius: 8px;">
-                            <h4>Network Issue Detected:</h4>
-                            <p>Cannot connect to the API server. This could be:</p>
+                            <h4>API Issue Detected:</h4>
+                            <p>The API endpoint is returning HTML instead of JSON. This usually means:</p>
                             <ul>
-                                <li>API server is not deployed or running</li>
-                                <li>Vercel function is not working</li>
-                                <li>Network connectivity issue</li>
-                                <li>CORS configuration problem</li>
+                                <li>The API file doesn't exist or isn't deployed</li>
+                                <li>Vercel routing is not configured correctly</li>
+                                <li>Environment variables are missing</li>
                             </ul>
+                            <p>Try testing: <a href="${API_BASE}/api/test" target="_blank">${API_BASE}/api/test</a></p>
                         </div>
                     `;
                 }
@@ -1129,8 +1157,7 @@
                 errorHtml += `
                         <div style="margin-top: 1rem;">
                             <button onclick="showDashboard()" class="btn btn-primary" style="margin-right: 0.5rem;">Retry</button>
-                            <button onclick="testApiConnectivity()" class="btn btn-outline" style="margin-right: 0.5rem;">Test API</button>
-                            <button onclick="window.open('${API_BASE}/api/test', '_blank')" class="btn btn-outline">Test Endpoint</button>
+                            <button onclick="testApiConnectivity()" class="btn btn-outline">Test API</button>
                         </div>
                     </div>
                 `;
@@ -1147,9 +1174,6 @@
                     <div class="error-message">
                         <h3>Invalid Dashboard Data</h3>
                         <p>Received invalid data structure from API</p>
-                        <div class="debug-info">
-                            Received: ${JSON.stringify(data, null, 2)}
-                        </div>
                         <button onclick="showDashboard()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
                     </div>
                 `;
@@ -1173,7 +1197,6 @@
                                 <div class="action-meta">
                                     ${item.clientCompany ? `Client: ${item.clientCompany}` : ''}
                                     ${item.priority ? ` | Priority: ${item.priority}` : ''}
-                                    ${item.quoteValue ? ` | Value: ${item.quoteValue}` : ''}
                                 </div>
                             </div>
                             <div class="action-buttons">
@@ -1187,46 +1210,278 @@
             ` : '';
 
             document.getElementById('mainContent').innerHTML = `
+                <h2>Dashboard</h2>
                 <div class="dashboard-stats">
                     ${statsHtml}
                 </div>
                 ${actionItemsHtml}
                 ${data.recentActivities ? renderRecentActivities(data.recentActivities) : ''}
-                <div class="debug-info" style="margin-top: 2rem;">
-                    <strong>Dashboard loaded successfully!</strong><br>
-                    Stats count: ${Object.keys(data.stats).length}<br>
-                    Action items: ${data.actionItems ? data.actionItems.length : 0}<br>
-                    Recent activities: ${data.recentActivities ? data.recentActivities.length : 0}
+            `;
+        }
+
+        // File Upload Functions
+        async function showFileUpload() {
+            setActiveNav('nav-portal');
+            document.getElementById('portal-submenu').classList.add('active');
+            
+            document.getElementById('mainContent').innerHTML = `
+                <h2>File Upload Portal</h2>
+                <p>Upload files for proposals and project documentation</p>
+                
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.txt,.zip">
+                    <div class="upload-icon">📁</div>
+                    <h3>Click to Upload Files</h3>
+                    <p>Or drag and drop files here</p>
+                    <p>Supported: PDF, DOC, XLS, PPT, Images, TXT, ZIP (Max 10MB each)</p>
+                </div>
+
+                <div class="form-group" style="max-width: 500px; margin: 2rem 0;">
+                    <label for="fileCategory">Category</label>
+                    <select id="fileCategory" class="form-control">
+                        <option value="general">General</option>
+                        <option value="proposals">Proposals</option>
+                        <option value="contracts">Contracts</option>
+                        <option value="presentations">Presentations</option>
+                        <option value="technical">Technical Documents</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="max-width: 500px; margin: 2rem 0;">
+                    <label for="fileDescription">Description (Optional)</label>
+                    <textarea id="fileDescription" class="form-control" rows="3" placeholder="Enter file description..."></textarea>
+                </div>
+
+                <div id="selectedFiles" class="file-list" style="display: none;">
+                    <h3>Selected Files</h3>
+                    <div id="filesList"></div>
+                    <button onclick="uploadFiles()" class="btn btn-primary" style="margin-top: 1rem;">Upload Files</button>
+                </div>
+            `;
+
+            setupFileUpload();
+        }
+
+        function setupFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.querySelector('.upload-area');
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Drag and drop functionality
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect();
+            });
+        }
+
+        function handleFileSelect() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) return;
+
+            const filesListDiv = document.getElementById('filesList');
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+            
+            let filesHtml = '';
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                filesHtml += `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span class="file-icon">📄</span>
+                            <div class="file-details">
+                                <h4>${file.name}</h4>
+                                <div class="file-meta">${fileSize} MB | ${file.type || 'Unknown type'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            filesListDiv.innerHTML = filesHtml;
+            selectedFilesDiv.style.display = 'block';
+        }
+
+        async function uploadFiles() {
+            const files = document.getElementById('fileInput').files;
+            const category = document.getElementById('fileCategory').value;
+            const description = document.getElementById('fileDescription').value;
+            
+            if (files.length === 0) {
+                showMessage('Please select files to upload', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+                formData.append('category', category);
+                formData.append('description', description);
+
+                const response = await apiCall('files', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                showMessage(`Successfully uploaded ${files.length} file(s)!`, 'success');
+                
+                // Reset form
+                document.getElementById('fileInput').value = '';
+                document.getElementById('fileDescription').value = '';
+                document.getElementById('selectedFiles').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showMessage(`Upload failed: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // View Files Functions
+        async function showFiles() {
+            setActiveNav('nav-portal');
+            document.getElementById('portal-submenu').classList.add('active');
+            showLoading();
+            
+            try {
+                const filesData = await apiCall('files?limit=20');
+                renderFilesList(filesData.data);
+            } catch (error) {
+                console.error('Files error:', error);
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="error-message">
+                        <h3>Error Loading Files</h3>
+                        <p>${error.message}</p>
+                        <button onclick="showFiles()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderFilesList(files) {
+            let filesHtml = '';
+            
+            if (files && files.length > 0) {
+                filesHtml = files.map(file => `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span class="file-icon">${getFileIcon(file.mimeType)}</span>
+                            <div class="file-details">
+                                <h4>${file.originalName}</h4>
+                                <div class="file-meta">
+                                    ${(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
+                                    ${file.category} | 
+                                    ${new Date(file.uploadedAt).toLocaleDateString()} |
+                                    By ${file.uploadedByName}
+                                </div>
+                                ${file.description ? `<p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-light);">${file.description}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="btn-icon btn-view" onclick="viewFile('${file.id}')" title="View/Download">👁️</button>
+                            ${file.uploadedBy === currentUser.uid || currentUserRole === 'director' ? 
+                              `<button class="btn-icon btn-delete" onclick="deleteFile('${file.id}')" title="Delete">🗑️</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                filesHtml = `
+                    <div style="text-align: center; padding: 3rem; color: var(--text-light);">
+                        <h3>No files uploaded yet</h3>
+                        <p>Upload your first file to get started</p>
+                        <button onclick="showFileUpload()" class="btn btn-primary" style="margin-top: 1rem;">Upload Files</button>
+                    </div>
+                `;
+            }
+
+            document.getElementById('mainContent').innerHTML = `
+                <h2>File Library</h2>
+                <p>View and manage uploaded files</p>
+                
+                <div style="margin: 2rem 0; display: flex; gap: 1rem; align-items: center;">
+                    <button onclick="showFileUpload()" class="btn btn-primary">Upload New Files</button>
+                    <button onclick="showFiles()" class="btn btn-outline">Refresh</button>
+                </div>
+
+                <div class="file-list">
+                    ${filesHtml}
                 </div>
             `;
         }
 
+        function getFileIcon(mimeType) {
+            if (!mimeType) return '📄';
+            if (mimeType.includes('pdf')) return '📕';
+            if (mimeType.includes('word')) return '📘';
+            if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊';
+            if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '📽️';
+            if (mimeType.includes('image')) return '🖼️';
+            if (mimeType.includes('zip')) return '🗜️';
+            return '📄';
+        }
+
+        async function viewFile(fileId) {
+            try {
+                // In a real implementation, this would get the download URL from your API
+                showMessage('Opening file... (Feature would open/download the file)', 'info');
+            } catch (error) {
+                console.error('View file error:', error);
+                showMessage(`Failed to open file: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('Are you sure you want to delete this file?')) return;
+            
+            try {
+                showLoading();
+                await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
+                showMessage('File deleted successfully', 'success');
+                showFiles(); // Refresh the list
+            } catch (error) {
+                console.error('Delete file error:', error);
+                showMessage(`Failed to delete file: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Other Functions
         function formatStatLabel(key) {
             const labels = {
                 totalProposals: 'Total Proposals',
                 activeProposals: 'Active Proposals',
                 approvedProposals: 'Approved Proposals',
                 pipelineValue: 'Pipeline Value',
-                winRate: 'Win Rate',
-                pendingEstimations: 'Pending Estimations',
-                completedThisMonth: 'Completed This Month',
-                pendingPricing: 'Pending Pricing',
-                revenueThisQuarter: 'Revenue This Quarter',
-                averageMargin: 'Average Margin',
-                pendingApprovals: 'Pending Approvals',
-                totalPipelineValue: 'Total Pipeline Value'
+                winRate: 'Win Rate'
             };
             return labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
         }
 
         function formatActionTitle(type) {
-            const titles = {
-                estimation_required: 'Estimation Required',
-                pricing_required: 'Pricing Required',
-                approval_required: 'Approval Required',
-                ready_for_client: 'Ready for Client Submission'
-            };
-            return titles[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
 
         function getActionButtonText(type) {
@@ -1251,7 +1506,6 @@
                                 <strong>${activity.details}</strong>
                                 <div class="action-meta">
                                     ${activity.performedByName} | ${new Date(activity.timestamp).toLocaleDateString()}
-                                    ${activity.projectName ? ` | ${activity.projectName}` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1275,11 +1529,6 @@
             document.getElementById('mainContent').innerHTML = '<h2>Workflow Management</h2><p>This section will show workflow status and progression.</p>';
         }
 
-        async function showFiles() {
-            setActiveNav('nav-files');
-            document.getElementById('mainContent').innerHTML = '<h2>File Management</h2><p>This section will handle file uploads and management.</p>';
-        }
-
         async function showReports() {
             setActiveNav('nav-reports');
             document.getElementById('mainContent').innerHTML = '<h2>Reports & Analytics</h2><p>This section will show detailed reports and analytics.</p>';
@@ -1300,12 +1549,20 @@
             document.getElementById('authMessages').innerHTML = '';
         }
 
-        // Console helpers for debugging
-        console.log('EBTracker loaded successfully');
-        console.log('Available debug functions:', {
-            testApiConnectivity: 'Test API connectivity',
-            debugApiCall: 'Debug specific API calls'
-        });
+        // Debug functions
+        window.testApiConnectivity = testApiConnectivity;
+        window.debugApiCall = async (endpoint) => {
+            try {
+                const result = await apiCall(endpoint);
+                console.log('Debug result:', result);
+                return result;
+            } catch (error) {
+                console.error('Debug error:', error);
+                return error;
+            }
+        };
+
+        console.log('EBTracker Portal loaded successfully');
 
     </script>
 </body>
