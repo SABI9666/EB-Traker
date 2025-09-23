@@ -20,6 +20,7 @@
             --background: #F8FAFB;
             --success: #27AE60;
             --danger: #E74C3C;
+            --warning: #F39C12;
             --border: #E1E8ED;
         }
 
@@ -183,6 +184,12 @@
             color: white;
         }
 
+        .btn-outline {
+            background: transparent;
+            color: var(--primary-blue);
+            border: 2px solid var(--primary-blue);
+        }
+
         .role-selector {
             margin-bottom: 1.5rem;
         }
@@ -256,21 +263,43 @@
             display: none;
             min-height: 100vh;
             background: var(--background);
-            padding: 2rem;
         }
 
         .header {
             background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
             color: white;
             padding: 1rem 2rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo .logo-circle {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+        }
+
+        .company-info h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .company-info p {
+            opacity: 0.9;
+            font-size: 0.9rem;
         }
 
         .user-info {
@@ -287,11 +316,262 @@
             margin-left: 1rem;
         }
 
-        .dashboard {
+        .main-layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            padding: 2rem 0;
+            min-height: calc(100vh - 120px);
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu a {
+            display: block;
+            padding: 1rem 2rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            border-right: 4px solid var(--primary-blue);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            background: var(--background);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--dark-blue));
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .action-items {
             background: white;
             border-radius: 15px;
             padding: 2rem;
+            margin-bottom: 2rem;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .action-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            background: var(--background);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-blue);
+            transition: all 0.3s ease;
+        }
+
+        .action-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .action-content {
+            flex: 1;
+        }
+
+        .action-content strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+
+        .action-meta {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .btn-sm {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.85rem;
+            width: auto;
+        }
+
+        .proposals-table {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            background: var(--light-blue);
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background: #FFF3CD; color: #856404; }
+        .status-approved { background: #D4EDDA; color: #155724; }
+        .status-submitted { background: #D1ECF1; color: #0C5460; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-blue);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background: var(--light-blue);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--dark-blue);
+            background: var(--light-blue);
+        }
+
+        .file-list {
+            margin-top: 1rem;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            background: var(--background);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @media (max-width: 768px) {
@@ -301,8 +581,32 @@
                 margin: 1rem;
             }
             
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
             .role-buttons {
                 grid-template-columns: 1fr;
+            }
+
+            .action-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .action-buttons {
+                width: 100%;
+                justify-content: flex-end;
             }
         }
     </style>
@@ -392,11 +696,14 @@
     </div>
 
     <div id="appContainer" class="app-container">
-        <div class="header">
+        <header class="header">
             <div class="header-content">
-                <div>
-                    <h1>EDANBROOK EBTracker</h1>
-                    <p>Project Management System</p>
+                <div class="logo">
+                    <div class="logo-circle">EB</div>
+                    <div class="company-info">
+                        <h1>EDANBROOK EBTracker</h1>
+                        <p>Project Management System</p>
+                    </div>
                 </div>
                 <div class="user-info">
                     <div id="userWelcome">Welcome back</div>
@@ -404,13 +711,25 @@
                     <button onclick="logout()" class="btn-logout">Logout</button>
                 </div>
             </div>
-        </div>
+        </header>
 
-        <div class="dashboard">
-            <div id="dashboardContent">
-                <h2>Dashboard</h2>
-                <p>Welcome to EBTracker. Your role-specific dashboard will load here.</p>
-            </div>
+        <div class="main-layout">
+            <nav class="sidebar">
+                <ul class="nav-menu">
+                    <li><a href="#" onclick="showDashboard()" class="active" id="nav-dashboard">📊 Dashboard</a></li>
+                    <li><a href="#" onclick="showProposals()" id="nav-proposals">📄 Proposals</a></li>
+                    <li><a href="#" onclick="showWorkflow()" id="nav-workflow">🔄 Workflow</a></li>
+                    <li><a href="#" onclick="showFiles()" id="nav-files">📁 Files</a></li>
+                    <li><a href="#" onclick="showReports()" id="nav-reports">📈 Reports</a></li>
+                </ul>
+            </nav>
+
+            <main class="main-content" id="mainContent">
+                <div class="loading" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p>Loading...</p>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -419,7 +738,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // Firebase Configuration - REPLACE WITH YOUR CONFIG
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU",
             authDomain: "eb-tracker-42881.firebaseapp.com",
@@ -434,25 +753,23 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        // API Configuration
+        const API_BASE = window.location.origin; // For Vercel deployment
+        // const API_BASE = 'http://localhost:3000'; // For local development
+
         // AUTHORIZED EMAIL CONFIGURATION
-        // This object controls access for non-BDM roles.
         const authorizedUsers = {
-            // ESTIMATOR ROLE - Technical team members who can estimate project hours
             estimator: [
                 "john.estimator@edanbrook.com",
                 "sarah.technical@edanbrook.com", 
                 "mike.estimation@edanbrook.com",
                 "estimator@edanbrook.com",
             ],
-            
-            // COO ROLE - Operations management with pricing approval authority
             coo: [
                 "coo@edanbrook.com",
                 "operations.manager@edanbrook.com",
                 "michael.operations@edanbrook.com",
             ],
-            
-            // DIRECTOR ROLE - Executive level with full system access
             director: [
                 "director@edanbrook.com",
                 "ceo@edanbrook.com", 
@@ -464,6 +781,7 @@
         // Global variables
         let currentUser = null;
         let currentUserRole = '';
+        let authToken = '';
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -473,13 +791,13 @@
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
+                    authToken = await user.getIdToken();
                     try {
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
                             showApp();
                         } else {
-                            // User exists in Auth but not in Firestore - sign them out
                             await auth.signOut();
                             showError('Account Error', 'User data not found. Please contact administrator.');
                         }
@@ -490,6 +808,7 @@
                 } else {
                     currentUser = null;
                     currentUserRole = '';
+                    authToken = '';
                     showLogin();
                 }
             });
@@ -511,15 +830,12 @@
         }
 
         function showTab(tab) {
-            // Update tab buttons
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
             
-            // Update content
             document.querySelectorAll('.auth-content').forEach(c => c.classList.remove('active'));
             document.getElementById(`${tab}Content`).classList.add('active');
             
-            // Clear messages
             clearMessages();
         }
 
@@ -534,7 +850,6 @@
                 showMessage('Logging in...', 'info');
                 
                 await auth.signInWithEmailAndPassword(email, password);
-                // Success handled by auth state listener
                 
             } catch (error) {
                 console.error('Login error:', error);
@@ -572,7 +887,6 @@
             try {
                 clearMessages();
                 
-                // Check if role requires authorization
                 if (role !== 'bdm') {
                     if (!isAuthorizedEmail(email, role)) {
                         showMessage(`Access denied. Email ${email} is not authorized for ${role.toUpperCase()} role. Contact administrator for access.`, 'error');
@@ -582,13 +896,9 @@
                 
                 showMessage('Creating account...', 'info');
                 
-                // Create user account
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-
-                // Update user profile display name
                 await userCredential.user.updateProfile({ displayName: name });
                 
-                // Add user data to Firestore
                 await db.collection('users').doc(userCredential.user.uid).set({
                     name: name,
                     email: email,
@@ -598,8 +908,6 @@
                 });
                 
                 showMessage('Account created successfully! Logging in...', 'success');
-                
-                // Success will be fully handled by auth state listener
                 
             } catch (error) {
                 console.error('Registration error:', error);
@@ -641,12 +949,16 @@
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('appContainer').style.display = 'block';
             
-            // Update user info
             document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
             
-            // Load role-specific dashboard
-            loadDashboard();
+            // Show/hide navigation based on role
+            if (currentUserRole !== 'bdm') {
+                const proposalsNav = document.getElementById('nav-proposals');
+                if (proposalsNav) proposalsNav.style.display = 'none';
+            }
+            
+            showDashboard();
         }
 
         function showLogin() {
@@ -655,80 +967,202 @@
             clearMessages();
         }
 
-        function loadDashboard() {
-            const roleNames = {
-                bdm: 'Business Development Manager',
-                estimator: 'Technical Estimator', 
-                coo: 'Chief Operating Officer',
-                director: 'Executive Director'
+        // API Helper Functions
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}/api/${endpoint}`;
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                }
             };
             
-            document.getElementById('dashboardContent').innerHTML = `
-                <h2>${roleNames[currentUserRole]} Dashboard</h2>
-                <div style="background: var(--light-blue); padding: 2rem; border-radius: 10px; margin: 2rem 0;">
-                    <h3>Welcome, ${currentUser.displayName || currentUser.email.split('@')[0]}!</h3>
-                    <p><strong>Role:</strong> ${roleNames[currentUserRole]}</p>
-                    <p><strong>Email:</strong> ${currentUser.email}</p>
-                    <p><strong>Account Status:</strong> <span style="color: var(--success); font-weight: bold;">Active</span></p>
-                </div>
+            const finalOptions = {
+                ...defaultOptions,
+                ...options,
+                headers: {
+                    ...defaultOptions.headers,
+                    ...options.headers
+                }
+            };
+            
+            try {
+                const response = await fetch(url, finalOptions);
+                const data = await response.json();
                 
-                <div style="margin-top: 2rem;">
-                    <h3>Quick Actions</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                        ${getRoleActions(currentUserRole)}
+                if (!response.ok) {
+                    throw new Error(data.error || 'API request failed');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API call error:', error);
+                throw error;
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        function setActiveNav(navId) {
+            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+            document.getElementById(navId).classList.add('active');
+        }
+
+        // Dashboard Functions
+        async function showDashboard() {
+            setActiveNav('nav-dashboard');
+            showLoading();
+            
+            try {
+                const dashboardData = await apiCall('dashboard');
+                renderDashboard(dashboardData.data);
+            } catch (error) {
+                console.error('Dashboard error:', error);
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="error-message">
+                        <h3>Error Loading Dashboard</h3>
+                        <p>${error.message}</p>
+                        <button onclick="showDashboard()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
                     </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderDashboard(data) {
+            const statsHtml = Object.entries(data.stats).map(([key, value]) => `
+                <div class="stat-card">
+                    <div class="stat-number">${value}</div>
+                    <div class="stat-label">${formatStatLabel(key)}</div>
                 </div>
-                
-                <div style="margin-top: 2rem;">
-                    <h3>System Information</h3>
-                    <p>✅ Authentication: Firebase Auth</p>
-                    <p>✅ Database: Firestore</p>
-                    <p>✅ Access Control: Role-based with email authorization</p>
-                    <p>✅ Status: Ready</p>
+            `).join('');
+
+            const actionItemsHtml = data.actionItems && data.actionItems.length > 0 ? `
+                <div class="action-items">
+                    <h3>Your Action Items</h3>
+                    ${data.actionItems.map(item => `
+                        <div class="action-item">
+                            <div class="action-content">
+                                <strong>${item.projectName || formatActionTitle(item.type)}</strong>
+                                <div class="action-meta">
+                                    ${item.clientCompany ? `Client: ${item.clientCompany}` : ''}
+                                    ${item.priority ? ` | Priority: ${item.priority}` : ''}
+                                    ${item.quoteValue ? ` | Value: ${item.quoteValue}` : ''}
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-primary btn-sm" onclick="handleActionItem('${item.type}', '${item.proposalId}')">
+                                    ${getActionButtonText(item.type)}
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            document.getElementById('mainContent').innerHTML = `
+                <div class="dashboard-stats">
+                    ${statsHtml}
+                </div>
+                ${actionItemsHtml}
+                ${data.recentActivities ? renderRecentActivities(data.recentActivities) : ''}
+            `;
+        }
+
+        function formatStatLabel(key) {
+            const labels = {
+                totalProposals: 'Total Proposals',
+                activeProposals: 'Active Proposals',
+                approvedProposals: 'Approved Proposals',
+                pipelineValue: 'Pipeline Value',
+                winRate: 'Win Rate',
+                pendingEstimations: 'Pending Estimations',
+                completedThisMonth: 'Completed This Month',
+                pendingPricing: 'Pending Pricing',
+                revenueThisQuarter: 'Revenue This Quarter',
+                averageMargin: 'Average Margin',
+                pendingApprovals: 'Pending Approvals',
+                totalPipelineValue: 'Total Pipeline Value'
+            };
+            return labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+        }
+
+        function formatActionTitle(type) {
+            const titles = {
+                estimation_required: 'Estimation Required',
+                pricing_required: 'Pricing Required',
+                approval_required: 'Approval Required',
+                ready_for_client: 'Ready for Client Submission'
+            };
+            return titles[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function getActionButtonText(type) {
+            const buttons = {
+                estimation_required: 'Start Estimation',
+                pricing_required: 'Set Pricing',
+                approval_required: 'Review & Approve',
+                ready_for_client: 'Submit to Client'
+            };
+            return buttons[type] || 'Take Action';
+        }
+
+        function renderRecentActivities(activities) {
+            if (!activities || activities.length === 0) return '';
+            
+            return `
+                <div class="action-items">
+                    <h3>Recent Activity</h3>
+                    ${activities.map(activity => `
+                        <div class="action-item">
+                            <div class="action-content">
+                                <strong>${activity.details}</strong>
+                                <div class="action-meta">
+                                    ${activity.performedByName} | ${new Date(activity.timestamp).toLocaleDateString()}
+                                    ${activity.projectName ? ` | ${activity.projectName}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             `;
         }
 
-        function getRoleActions(role) {
-            const actions = {
-                bdm: [
-                    { title: 'Create Proposal', desc: 'Start a new project proposal' },
-                    { title: 'View Pipeline', desc: 'Check active opportunities' },
-                    { title: 'Client Management', desc: 'Manage client relationships' }
-                ],
-                estimator: [
-                    { title: 'Project Estimation', desc: 'Estimate project hours' },
-                    { title: 'Technical Review', desc: 'Review project specifications' },
-                    { title: 'Cost Analysis', desc: 'Analyze project costs' }
-                ],
-                coo: [
-                    { title: 'Approve Pricing', desc: 'Review and approve project pricing' },
-                    { title: 'Operations Dashboard', desc: 'Monitor business operations' },
-                    { title: 'Team Management', desc: 'Manage team resources' }
-                ],
-                director: [
-                    { title: 'Executive Approval', desc: 'Final project approvals' },
-                    { title: 'Strategic Overview', desc: 'Business intelligence dashboard' },
-                    { title: 'Performance Metrics', desc: 'Company performance analytics' }
-                ]
-            };
-            
-            return actions[role].map(action => `
-                <div style="background: white; padding: 1.5rem; border-radius: 10px; border-left: 4px solid var(--primary-blue); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h4 style="color: var(--primary-blue); margin-bottom: 0.5rem;">${action.title}</h4>
-                    <p style="color: var(--text-light); font-size: 0.9rem;">${action.desc}</p>
-                    <button style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary-blue); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="showMessage('Feature coming soon!', 'info')">Launch</button>
-                </div>
-            `).join('');
+        async function handleActionItem(type, proposalId) {
+            switch (type) {
+                case 'estimation_required':
+                    showEstimationModal(proposalId);
+                    break;
+                case 'pricing_required':
+                    showPricingModal(proposalId);
+                    break;
+                case 'approval_required':
+                    showApprovalModal(proposalId);
+                    break;
+                case 'ready_for_client':
+                    showClientSubmissionModal(proposalId);
+                    break;
+                default:
+                    showMessage('Action not implemented yet', 'info');
+            }
         }
 
+        // Continue with more functions in next part...
+        
         function showMessage(message, type) {
             const messagesDiv = document.getElementById('authMessages');
             const className = type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : 'info-message';
             
             messagesDiv.innerHTML = `<div class="${className}">${message}</div>`;
             
-            if (type !== 'error' && type !== 'info') {
+            if (type !== 'error') {
                 setTimeout(clearMessages, 4000);
             }
         }
@@ -737,92 +1171,43 @@
             document.getElementById('authMessages').innerHTML = '';
         }
 
-        /**
-         * ADMIN CONSOLE FUNCTIONS
-         * These functions can be used in the browser console for dynamic user management.
-         * Example usage: addUserAccess("new.user@edanbrook.com", "estimator")
-        */
-
-        // Function to add a user (can be called from browser console)
-        function addUserAccess(email, role) {
-            if (!authorizedUsers[role]) {
-                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
-                return false;
-            }
-            
-            const normalizedEmail = email.toLowerCase().trim();
-            
-            if (authorizedUsers[role].includes(normalizedEmail)) {
-                console.log(`⚠️ User ${normalizedEmail} already has access to the ${role} role.`);
-                return false;
-            }
-            
-            authorizedUsers[role].push(normalizedEmail);
-            console.log(`✅ Added ${normalizedEmail} to ${role} role.`);
-            console.log('To apply changes, copy the updated object below and replace it in the HTML file:');
-            console.log(JSON.stringify(authorizedUsers, null, 4));
-            return true;
+        // Placeholder functions for other sections
+        async function showProposals() {
+            setActiveNav('nav-proposals');
+            document.getElementById('mainContent').innerHTML = '<h2>Proposals Management</h2><p>This section will show all proposals and allow creating new ones.</p>';
         }
 
-        // Function to remove a user (can be called from browser console)
-        function removeUserAccess(email, role) {
-            if (!authorizedUsers[role]) {
-                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
-                return false;
-            }
-            
-            const normalizedEmail = email.toLowerCase().trim();
-            const index = authorizedUsers[role].indexOf(normalizedEmail);
-            
-            if (index === -1) {
-                console.log(`⚠️ User ${normalizedEmail} not found in the ${role} role.`);
-                return false;
-            }
-            
-            authorizedUsers[role].splice(index, 1);
-            console.log(`✅ Removed ${normalizedEmail} from ${role} role.`);
-            console.log('To apply changes, copy the updated object below and replace it in the HTML file:');
-            console.log(JSON.stringify(authorizedUsers, null, 4));
-            return true;
+        async function showWorkflow() {
+            setActiveNav('nav-workflow');
+            document.getElementById('mainContent').innerHTML = '<h2>Workflow Management</h2><p>This section will show workflow status and progression.</p>';
         }
 
-        // Function to list all users for a role
-        function listRoleUsers(role) {
-            if (!authorizedUsers[role]) {
-                console.error('❌ Invalid role. Valid roles: estimator, coo, director');
-                return;
-            }
-            
-            console.log(`📋 ${role.toUpperCase()} Role Users (${authorizedUsers[role].length}):`);
-            authorizedUsers[role].forEach((email, index) => {
-                console.log(`  ${index + 1}. ${email}`);
-            });
+        async function showFiles() {
+            setActiveNav('nav-files');
+            document.getElementById('mainContent').innerHTML = '<h2>File Management</h2><p>This section will handle file uploads and management.</p>';
         }
 
-        // Function to show all authorized users
-        function showAllUsers() {
-            console.log('📊 ALL AUTHORIZED USERS:');
-            console.log('========================');
-            
-            Object.keys(authorizedUsers).forEach(role => {
-                console.log(`\n${role.toUpperCase()} (${authorizedUsers[role].length} users):`);
-                if (authorizedUsers[role].length > 0) {
-                    authorizedUsers[role].forEach((email, index) => {
-                        console.log(`  ${index + 1}. ${email}`);
-                    });
-                } else {
-                    console.log('  (No users in this role)');
-                }
-            });
-             console.log('========================');
+        async function showReports() {
+            setActiveNav('nav-reports');
+            document.getElementById('mainContent').innerHTML = '<h2>Reports & Analytics</h2><p>This section will show detailed reports and analytics.</p>';
         }
 
-        // Expose functions for admin console use
-        window.addUserAccess = addUserAccess;
-        window.removeUserAccess = removeUserAccess;
-        window.listRoleUsers = listRoleUsers;
-        window.showAllUsers = showAllUsers;
-        window.viewAuthorizedUsers = () => console.log(authorizedUsers);
+        // Modal placeholder functions
+        function showEstimationModal(proposalId) {
+            showMessage('Estimation modal will be implemented with full form', 'info');
+        }
+
+        function showPricingModal(proposalId) {
+            showMessage('Pricing modal will be implemented with full form', 'info');
+        }
+
+        function showApprovalModal(proposalId) {
+            showMessage('Approval modal will be implemented with full form', 'info');
+        }
+
+        function showClientSubmissionModal(proposalId) {
+            showMessage('Client submission modal will be implemented', 'info');
+        }
 
     </script>
 </body>
