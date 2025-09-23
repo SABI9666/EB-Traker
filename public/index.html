@@ -455,104 +455,6 @@
             width: auto;
         }
 
-        .proposals-table {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-
-        .table th,
-        .table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .table th {
-            background: var(--light-blue);
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-
-        .status-badge {
-            padding: 0.3rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-pending { background: #FFF3CD; color: #856404; }
-        .status-approved { background: #D4EDDA; color: #155724; }
-        .status-submitted { background: #D1ECF1; color: #0C5460; }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 3000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            overflow-y: auto;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 900px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .upload-area {
-            border: 2px dashed var(--primary-blue);
-            border-radius: 10px;
-            padding: 2rem;
-            text-align: center;
-            margin: 1rem 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .upload-area:hover {
-            background: var(--light-blue);
-        }
-
-        .upload-area.dragover {
-            border-color: var(--dark-blue);
-            background: var(--light-blue);
-        }
-
-        .file-list {
-            margin-top: 1rem;
-        }
-
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.8rem;
-            background: var(--background);
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-        }
-
         .loading {
             display: none;
             text-align: center;
@@ -572,6 +474,16 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
@@ -753,9 +665,24 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // API Configuration
-        const API_BASE = window.location.origin; // For Vercel deployment
-        // const API_BASE = 'http://localhost:3000'; // For local development
+        // API Configuration with better detection
+        function getApiBase() {
+            // For local development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:3000';
+            }
+            
+            // For Vercel deployment
+            if (window.location.hostname.includes('vercel.app')) {
+                return window.location.origin;
+            }
+            
+            // For custom domains
+            return window.location.origin;
+        }
+
+        const API_BASE = getApiBase();
+        console.log('API Base URL:', API_BASE);
 
         // AUTHORIZED EMAIL CONFIGURATION
         const authorizedUsers = {
@@ -783,6 +710,169 @@
         let currentUserRole = '';
         let authToken = '';
 
+        // Enhanced API Helper Functions with debugging
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_BASE}/api/${endpoint}`;
+            
+            console.log('API Call Debug:', {
+                endpoint,
+                fullUrl: url,
+                apiBase: API_BASE,
+                hasToken: !!authToken,
+                tokenLength: authToken ? authToken.length : 0
+            });
+            
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                }
+            };
+            
+            const finalOptions = {
+                ...defaultOptions,
+                ...options,
+                headers: {
+                    ...defaultOptions.headers,
+                    ...options.headers
+                }
+            };
+            
+            try {
+                console.log('Making request to:', url);
+                console.log('Request options:', {
+                    method: finalOptions.method || 'GET',
+                    headers: finalOptions.headers,
+                    hasBody: !!finalOptions.body
+                });
+                
+                const response = await fetch(url, finalOptions);
+                
+                console.log('Response received:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    contentType: response.headers.get('content-type'),
+                    url: response.url
+                });
+                
+                // Check if response is HTML (error page)
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    const htmlText = await response.text();
+                    console.error('Received HTML instead of JSON:', htmlText.substring(0, 200));
+                    throw new Error(`API returned HTML instead of JSON. Status: ${response.status}. This usually means the API endpoint doesn't exist.`);
+                }
+                
+                // Try to parse JSON
+                let data;
+                try {
+                    const textResponse = await response.text();
+                    console.log('Raw response:', textResponse.substring(0, 500));
+                    data = JSON.parse(textResponse);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    throw new Error(`Invalid JSON response: ${parseError.message}`);
+                }
+                
+                if (!response.ok) {
+                    console.error('API Error Response:', data);
+                    throw new Error(data.error || `API request failed with status ${response.status}`);
+                }
+                
+                console.log('API Success:', data);
+                return data;
+                
+            } catch (error) {
+                console.error('API call error:', {
+                    endpoint,
+                    url,
+                    error: error.message,
+                    stack: error.stack
+                });
+                
+                // Show user-friendly error messages
+                if (error.message.includes('Failed to fetch')) {
+                    throw new Error('Network error: Unable to connect to server. Check if the API is running.');
+                }
+                
+                throw error;
+            }
+        }
+
+        // Test API connectivity
+        async function testApiConnectivity() {
+            console.log('Testing API connectivity...');
+            
+            // Test if we can reach the base URL
+            try {
+                const response = await fetch(API_BASE);
+                console.log('Base URL test:', {
+                    status: response.status,
+                    contentType: response.headers.get('content-type')
+                });
+            } catch (error) {
+                console.error('Base URL unreachable:', error);
+            }
+            
+            // Test test endpoint
+            try {
+                const response = await fetch(`${API_BASE}/api/test`);
+                console.log('Test endpoint test:', {
+                    status: response.status,
+                    contentType: response.headers.get('content-type')
+                });
+                
+                const text = await response.text();
+                console.log('Test response text:', text.substring(0, 200));
+            } catch (error) {
+                console.error('Test endpoint unreachable:', error);
+            }
+            
+            // Test specific API endpoint
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                console.log('Dashboard endpoint test:', {
+                    status: response.status,
+                    contentType: response.headers.get('content-type')
+                });
+                
+                const text = await response.text();
+                console.log('Dashboard response text:', text.substring(0, 200));
+            } catch (error) {
+                console.error('Dashboard endpoint unreachable:', error);
+            }
+        }
+
+        // Add this to window for debugging
+        window.testApiConnectivity = testApiConnectivity;
+        window.debugApiCall = async (endpoint) => {
+            try {
+                const result = await apiCall(endpoint);
+                console.log('Debug result:', result);
+                return result;
+            } catch (error) {
+                console.error('Debug error:', error);
+                return error;
+            }
+        };
+
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        function setActiveNav(navId) {
+            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+            document.getElementById(navId).classList.add('active');
+        }
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
@@ -791,11 +881,14 @@
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
-                    authToken = await user.getIdToken();
                     try {
+                        authToken = await user.getIdToken();
+                        console.log('Auth token obtained, length:', authToken.length);
+                        
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
+                            console.log('User role:', currentUserRole);
                             showApp();
                         } else {
                             await auth.signOut();
@@ -967,76 +1060,102 @@
             clearMessages();
         }
 
-        // API Helper Functions
-        async function apiCall(endpoint, options = {}) {
-            const url = `${API_BASE}/api/${endpoint}`;
-            const defaultOptions = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                }
-            };
-            
-            const finalOptions = {
-                ...defaultOptions,
-                ...options,
-                headers: {
-                    ...defaultOptions.headers,
-                    ...options.headers
-                }
-            };
-            
-            try {
-                const response = await fetch(url, finalOptions);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'API request failed');
-                }
-                
-                return data;
-            } catch (error) {
-                console.error('API call error:', error);
-                throw error;
-            }
-        }
-
-        function showLoading() {
-            document.getElementById('loadingSpinner').style.display = 'block';
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingSpinner').style.display = 'none';
-        }
-
-        function setActiveNav(navId) {
-            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
-            document.getElementById(navId).classList.add('active');
-        }
-
-        // Dashboard Functions
+        // Updated Dashboard Functions with better error handling
         async function showDashboard() {
             setActiveNav('nav-dashboard');
             showLoading();
             
             try {
+                console.log('Loading dashboard for user:', {
+                    role: currentUserRole,
+                    uid: currentUser?.uid,
+                    hasToken: !!authToken
+                });
+                
+                // Test connectivity first
+                await testApiConnectivity();
+                
                 const dashboardData = await apiCall('dashboard');
                 renderDashboard(dashboardData.data);
+                
             } catch (error) {
                 console.error('Dashboard error:', error);
-                document.getElementById('mainContent').innerHTML = `
+                
+                // Show detailed error information
+                let errorHtml = `
                     <div class="error-message">
                         <h3>Error Loading Dashboard</h3>
-                        <p>${error.message}</p>
-                        <button onclick="showDashboard()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <div class="debug-info">
+                            <strong>Debug Information:</strong><br>
+                            API Base: ${API_BASE}<br>
+                            User Role: ${currentUserRole}<br>
+                            Has Token: ${authToken ? 'Yes' : 'No'}<br>
+                            Token Length: ${authToken ? authToken.length : 0}<br>
+                            Current User: ${currentUser?.email || 'None'}<br>
+                            Browser: ${navigator.userAgent.substring(0, 100)}...
+                        </div>
+                `;
+                
+                // Add specific troubleshooting steps
+                if (error.message.includes('HTML instead of JSON')) {
+                    errorHtml += `
+                        <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px;">
+                            <h4>Troubleshooting Steps:</h4>
+                            <ol>
+                                <li>Check if your Vercel deployment is working</li>
+                                <li>Verify that the <code>/api/dashboard.js</code> file exists in your deployment</li>
+                                <li>Check Vercel function logs for errors</li>
+                                <li>Ensure environment variables are set correctly</li>
+                                <li>Try the test endpoint: <a href="${API_BASE}/api/test" target="_blank">${API_BASE}/api/test</a></li>
+                            </ol>
+                        </div>
+                    `;
+                } else if (error.message.includes('Network error')) {
+                    errorHtml += `
+                        <div style="margin-top: 1rem; padding: 1rem; background: #f8d7da; border-radius: 8px;">
+                            <h4>Network Issue Detected:</h4>
+                            <p>Cannot connect to the API server. This could be:</p>
+                            <ul>
+                                <li>API server is not deployed or running</li>
+                                <li>Vercel function is not working</li>
+                                <li>Network connectivity issue</li>
+                                <li>CORS configuration problem</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+                
+                errorHtml += `
+                        <div style="margin-top: 1rem;">
+                            <button onclick="showDashboard()" class="btn btn-primary" style="margin-right: 0.5rem;">Retry</button>
+                            <button onclick="testApiConnectivity()" class="btn btn-outline" style="margin-right: 0.5rem;">Test API</button>
+                            <button onclick="window.open('${API_BASE}/api/test', '_blank')" class="btn btn-outline">Test Endpoint</button>
+                        </div>
                     </div>
                 `;
+                
+                document.getElementById('mainContent').innerHTML = errorHtml;
             } finally {
                 hideLoading();
             }
         }
 
         function renderDashboard(data) {
+            if (!data || !data.stats) {
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="error-message">
+                        <h3>Invalid Dashboard Data</h3>
+                        <p>Received invalid data structure from API</p>
+                        <div class="debug-info">
+                            Received: ${JSON.stringify(data, null, 2)}
+                        </div>
+                        <button onclick="showDashboard()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
+                    </div>
+                `;
+                return;
+            }
+
             const statsHtml = Object.entries(data.stats).map(([key, value]) => `
                 <div class="stat-card">
                     <div class="stat-number">${value}</div>
@@ -1073,6 +1192,12 @@
                 </div>
                 ${actionItemsHtml}
                 ${data.recentActivities ? renderRecentActivities(data.recentActivities) : ''}
+                <div class="debug-info" style="margin-top: 2rem;">
+                    <strong>Dashboard loaded successfully!</strong><br>
+                    Stats count: ${Object.keys(data.stats).length}<br>
+                    Action items: ${data.actionItems ? data.actionItems.length : 0}<br>
+                    Recent activities: ${data.recentActivities ? data.recentActivities.length : 0}
+                </div>
             `;
         }
 
@@ -1136,39 +1261,7 @@
         }
 
         async function handleActionItem(type, proposalId) {
-            switch (type) {
-                case 'estimation_required':
-                    showEstimationModal(proposalId);
-                    break;
-                case 'pricing_required':
-                    showPricingModal(proposalId);
-                    break;
-                case 'approval_required':
-                    showApprovalModal(proposalId);
-                    break;
-                case 'ready_for_client':
-                    showClientSubmissionModal(proposalId);
-                    break;
-                default:
-                    showMessage('Action not implemented yet', 'info');
-            }
-        }
-
-        // Continue with more functions in next part...
-        
-        function showMessage(message, type) {
-            const messagesDiv = document.getElementById('authMessages');
-            const className = type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : 'info-message';
-            
-            messagesDiv.innerHTML = `<div class="${className}">${message}</div>`;
-            
-            if (type !== 'error') {
-                setTimeout(clearMessages, 4000);
-            }
-        }
-
-        function clearMessages() {
-            document.getElementById('authMessages').innerHTML = '';
+            showMessage(`Action "${type}" for proposal ${proposalId} - Feature coming soon!`, 'info');
         }
 
         // Placeholder functions for other sections
@@ -1192,22 +1285,27 @@
             document.getElementById('mainContent').innerHTML = '<h2>Reports & Analytics</h2><p>This section will show detailed reports and analytics.</p>';
         }
 
-        // Modal placeholder functions
-        function showEstimationModal(proposalId) {
-            showMessage('Estimation modal will be implemented with full form', 'info');
+        function showMessage(message, type) {
+            const messagesDiv = document.getElementById('authMessages');
+            const className = type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : 'info-message';
+            
+            messagesDiv.innerHTML = `<div class="${className}">${message}</div>`;
+            
+            if (type !== 'error') {
+                setTimeout(clearMessages, 4000);
+            }
         }
 
-        function showPricingModal(proposalId) {
-            showMessage('Pricing modal will be implemented with full form', 'info');
+        function clearMessages() {
+            document.getElementById('authMessages').innerHTML = '';
         }
 
-        function showApprovalModal(proposalId) {
-            showMessage('Approval modal will be implemented with full form', 'info');
-        }
-
-        function showClientSubmissionModal(proposalId) {
-            showMessage('Client submission modal will be implemented', 'info');
-        }
+        // Console helpers for debugging
+        console.log('EBTracker loaded successfully');
+        console.log('Available debug functions:', {
+            testApiConnectivity: 'Test API connectivity',
+            debugApiCall: 'Debug specific API calls'
+        });
 
     </script>
 </body>
