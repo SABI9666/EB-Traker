@@ -16,11 +16,6 @@
       "dest": "/index.html"
     }
   ],
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30
-    }
-  },
   "env": {
     "FIREBASE_PROJECT_ID": "@firebase_project_id",
     "FIREBASE_PRIVATE_KEY": "@firebase_private_key", 
