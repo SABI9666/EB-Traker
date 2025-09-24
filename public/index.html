@@ -1568,6 +1568,70 @@
             return map[type] || 'View';
         }
 
+        async function debugAPI() {
+            console.log('=== API DEBUG TEST ===');
+            console.log('API Base:', API_BASE);
+            console.log('Auth Token Length:', authToken?.length || 'No token');
+            console.log('Current User:', currentUser?.email || 'No user');
+            
+            const testUrl = `${API_BASE}/api/dashboard`;
+            console.log('Testing URL:', testUrl);
+
+            try {
+                const response = await fetch(testUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Response Status:', response.status);
+                console.log('Response Headers:', [...response.headers.entries()]);
+                
+                const rawText = await response.text();
+                console.log('Raw Response:', rawText);
+                
+                // Check if it's HTML
+                if (rawText.includes('<html>') || rawText.includes('<!DOCTYPE')) {
+                    console.error('❌ API returned HTML instead of JSON');
+                    console.log('This means your Vercel function is crashing or not deployed correctly');
+                } else {
+                    console.log('✅ Response appears to be text/JSON');
+                }
+                
+                // Try to parse as JSON
+                try {
+                    const jsonData = JSON.parse(rawText);
+                    console.log('✅ Parsed JSON:', jsonData);
+                } catch (parseError) {
+                    console.error('❌ JSON Parse Error:', parseError.message);
+                    console.log('First 200 chars:', rawText.substring(0, 200));
+                }
+            
+            } catch (fetchError) {
+                console.error('❌ Fetch Error:', fetchError);
+            }
+            
+            console.log('=== END DEBUG TEST ===');
+        }
+
+        async function testAPIEndpoint() {
+            const endpoints = ['dashboard', 'proposals', 'activities'];
+            
+            for (const endpoint of endpoints) {
+                console.log(`Testing ${endpoint}...`);
+                try {
+                    const response = await fetch(`${API_BASE}/api/${endpoint}`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    const text = await response.text();
+                    console.log(`${endpoint}: ${response.status} - ${text.substring(0, 100)}...`);
+                } catch (e) {
+                    console.log(`${endpoint}: ERROR - ${e.message}`);
+                }
+            }
+        }
     </script>
 </body>
 </html>
