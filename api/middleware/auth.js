@@ -11,6 +11,7 @@ async function verifyToken(req, res, next) {
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
+        success: false,
         error: 'Unauthorized', 
         message: 'No token provided. Please include Authorization: Bearer <token> header'
       });
@@ -20,6 +21,7 @@ async function verifyToken(req, res, next) {
     
     if (!idToken) {
       return res.status(401).json({ 
+        success: false,
         error: 'Unauthorized', 
         message: 'Invalid token format'
       });
@@ -30,6 +32,7 @@ async function verifyToken(req, res, next) {
     
     if (!decodedToken) {
       return res.status(401).json({ 
+        success: false,
         error: 'Unauthorized', 
         message: 'Invalid token'
       });
@@ -40,6 +43,7 @@ async function verifyToken(req, res, next) {
     
     if (!userDoc.exists) {
       return res.status(404).json({ 
+        success: false,
         error: 'User not found', 
         message: 'User data not found in database. Please contact administrator.'
       });
@@ -50,6 +54,7 @@ async function verifyToken(req, res, next) {
     // Check if user is active
     if (userData.status === 'deactivated' || userData.status === 'suspended') {
       return res.status(403).json({ 
+        success: false,
         error: 'Account deactivated', 
         message: 'Your account has been deactivated. Please contact administrator.'
       });
@@ -82,6 +87,7 @@ async function verifyToken(req, res, next) {
     // Handle specific Firebase Auth errors
     if (error.code === 'auth/id-token-expired') {
       return res.status(401).json({ 
+        success: false,
         error: 'Token expired', 
         message: 'Your session has expired. Please log in again.'
       });
@@ -89,6 +95,7 @@ async function verifyToken(req, res, next) {
     
     if (error.code === 'auth/id-token-revoked') {
       return res.status(401).json({ 
+        success: false,
         error: 'Token revoked', 
         message: 'Your session has been revoked. Please log in again.'
       });
@@ -96,12 +103,14 @@ async function verifyToken(req, res, next) {
     
     if (error.code === 'auth/argument-error') {
       return res.status(401).json({ 
+        success: false,
         error: 'Invalid token', 
         message: 'Invalid token format or content.'
       });
     }
 
     return res.status(401).json({ 
+      success: false,
       error: 'Authentication failed', 
       message: 'Unable to verify authentication. Please try logging in again.',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -117,6 +126,7 @@ function requireRole(allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ 
+        success: false,
         error: 'Authentication required', 
         message: 'Please log in to access this resource'
       });
@@ -127,6 +137,7 @@ function requireRole(allowedRoles) {
     
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
+        success: false,
         error: 'Insufficient permissions', 
         message: `Access denied. Required role(s): ${roles.join(', ')}. Your role: ${req.user.role}`,
         required: roles,
@@ -147,6 +158,7 @@ function requireOwnership(resourceUserIdField = 'createdBy') {
     try {
       if (!req.user) {
         return res.status(401).json({ 
+          success: false,
           error: 'Authentication required'
         });
       }
@@ -161,6 +173,7 @@ function requireOwnership(resourceUserIdField = 'createdBy') {
       
       if (!resourceId) {
         return res.status(400).json({ 
+          success: false,
           error: 'Resource ID required'
         });
       }
@@ -173,6 +186,7 @@ function requireOwnership(resourceUserIdField = 'createdBy') {
     } catch (error) {
       console.error('Ownership check error:', error);
       return res.status(500).json({ 
+        success: false,
         error: 'Failed to verify resource ownership'
       });
     }
@@ -207,6 +221,7 @@ function rateLimit(maxRequests = 100, windowMs = 60000) { // 100 requests per mi
     
     if (recentRequests.length >= maxRequests) {
       return res.status(429).json({
+        success: false,
         error: 'Too many requests',
         message: `Rate limit exceeded. Maximum ${maxRequests} requests per ${windowMs/1000} seconds.`,
         retryAfter: Math.ceil((recentRequests[0] + windowMs - now) / 1000)
@@ -262,6 +277,7 @@ function validateApiKey() {
     
     if (!apiKey) {
       return res.status(401).json({
+        success: false,
         error: 'API key required',
         message: 'Please provide X-API-Key header'
       });
@@ -272,6 +288,7 @@ function validateApiKey() {
     
     if (!validApiKeys.includes(apiKey)) {
       return res.status(401).json({
+        success: false,
         error: 'Invalid API key'
       });
     }
@@ -309,11 +326,15 @@ function hasPermission(user, permission) {
 function requirePermission(permission) {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Authentication required' 
+      });
     }
 
     if (!hasPermission(req.user, permission)) {
       return res.status(403).json({ 
+        success: false,
         error: 'Insufficient permissions',
         message: `Permission '${permission}' required`
       });
