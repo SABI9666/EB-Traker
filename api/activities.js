@@ -1,5 +1,5 @@
-const { db } = require('./firebase-config');
-const { verifyToken, requireRole } = require('./middleware/auth');
+const { db } = require('../firebase-config');
+const { verifyToken } = require('../middleware/auth');
 
 const allowCors = fn => async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -21,11 +21,17 @@ const handler = async (req, res) => {
     } else if (req.method === 'POST') {
       return await createActivity(req, res);
     } else {
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ 
+        success: false,
+        error: 'Method not allowed' 
+      });
     }
   } catch (error) {
     console.error('Activities API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 };
 
@@ -56,7 +62,6 @@ async function getActivities(req, res) {
       const snapshot = await query
         .orderBy('timestamp', 'desc')
         .limit(parseInt(limit))
-        .offset(parseInt(offset))
         .get();
 
       const activities = [];
@@ -76,7 +81,10 @@ async function getActivities(req, res) {
 
     } catch (error) {
       console.error('Get activities error:', error);
-      res.status(500).json({ error: 'Failed to fetch activities' });
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to fetch activities' 
+      });
     }
   });
 }
@@ -95,7 +103,10 @@ async function createActivity(req, res) {
       } = req.body;
 
       if (!type || !details) {
-        return res.status(400).json({ error: 'Missing required fields: type, details' });
+        return res.status(400).json({ 
+          success: false,
+          error: 'Missing required fields: type, details' 
+        });
       }
 
       const activityData = {
@@ -122,7 +133,10 @@ async function createActivity(req, res) {
 
     } catch (error) {
       console.error('Create activity error:', error);
-      res.status(500).json({ error: 'Failed to create activity' });
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to create activity' 
+      });
     }
   });
 }
