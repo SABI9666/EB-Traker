@@ -1,4 +1,4 @@
-// Simple test endpoint to verify API is working
+// Create this file as: api/test.js
 
 const allowCors = fn => async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -15,39 +15,32 @@ const allowCors = fn => async (req, res) => {
 
 const handler = async (req, res) => {
   try {
-    // Simple test response
-    const testData = {
-      success: true,
-      message: 'API is working correctly',
-      timestamp: new Date().toISOString(),
-      environment: {
-        nodeVersion: process.version,
-        platform: process.platform,
-        hasFirebaseConfig: {
-          projectId: !!process.env.FIREBASE_PROJECT_ID,
-          privateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-          clientEmail: !!process.env.FIREBASE_CLIENT_EMAIL
-        }
-      },
-      request: {
-        method: req.method,
-        url: req.url,
-        headers: {
-          contentType: req.headers['content-type'],
-          authorization: req.headers.authorization ? 'Bearer [HIDDEN]' : 'Not provided',
-          userAgent: req.headers['user-agent']
-        }
-      }
-    };
+    console.log('Test endpoint called');
+    console.log('Method:', req.method);
+    console.log('Headers:', req.headers);
+    console.log('Environment variables check:', {
+      hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      nodeEnv: process.env.NODE_ENV
+    });
 
-    res.status(200).json(testData);
-    
+    return res.status(200).json({
+      success: true,
+      message: 'Test endpoint working!',
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      hasAuth: !!req.headers.authorization,
+      environment: {
+        hasFirebaseConfig: !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL)
+      }
+    });
+
   } catch (error) {
-    console.error('Test API error:', error);
-    
-    res.status(500).json({
+    console.error('Test endpoint error:', error);
+    return res.status(500).json({
       success: false,
-      error: 'Test API failed',
+      error: 'Test endpoint failed',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
