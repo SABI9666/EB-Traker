@@ -2,20 +2,15 @@
   "name": "ebtracker-backend",
   "version": "1.0.0",
   "description": "EBTracker Project Management Backend",
-  "main": "index.js",
   "scripts": {
     "dev": "vercel dev",
-    "build": "node build.js",
-    "start": "node index.js",
     "deploy": "vercel --prod"
   },
   "dependencies": {
     "firebase-admin": "^11.10.1",
-    "express": "^4.18.2",
     "cors": "^2.8.5",
     "multer": "^1.4.5-lts.1",
-    "uuid": "^9.0.0",
-    "dotenv": "^16.3.1"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@vercel/node": "^3.0.7",
