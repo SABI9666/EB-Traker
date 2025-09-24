@@ -1,5 +1,5 @@
-const { db, helpers } = require('./firebase-config');
-const { verifyToken, requireRole } = require('./middleware/auth');
+const { db, helpers } = require('../firebase-config');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const { v4: uuidv4 } = require('uuid');
 
 const allowCors = fn => async (req, res) => {
@@ -37,140 +37,144 @@ const handler = async (req, res) => {
 // Create new proposal (BDM only)
 async function createProposal(req, res) {
   await verifyToken(req, res, async () => {
-    requireRole(['bdm'])(req, res, async () => {
-      try {
-        const {
-          projectName,
-          projectType,
-          clientCompany,
-          clientContact,
-          clientEmail,
-          clientPhone,
-          country,
-          scopeOfWork,
-          timeline,
-          priority,
-          estimatedValue,
-          requirements,
-          deliverables,
-          constraints,
-          assumptions
-        } = req.body;
+    try {
+      // Check if user is BDM
+      if (req.user.role !== 'bdm') {
+        return res.status(403).json({ error: 'Only BDMs can create proposals' });
+      }
 
-        // Validate required fields
-        if (!projectName || !clientCompany || !projectType || !scopeOfWork) {
-          return res.status(400).json({ 
-            error: 'Missing required fields',
-            required: ['projectName', 'clientCompany', 'projectType', 'scopeOfWork']
-          });
-        }
+      const {
+        projectName,
+        projectType,
+        clientCompany,
+        clientContact,
+        clientEmail,
+        clientPhone,
+        country,
+        scopeOfWork,
+        timeline,
+        priority,
+        estimatedValue,
+        requirements,
+        deliverables,
+        constraints,
+        assumptions
+      } = req.body;
 
-        const proposalId = uuidv4();
-        const currentTimestamp = new Date().toISOString();
+      // Validate required fields
+      if (!projectName || !clientCompany || !projectType || !scopeOfWork) {
+        return res.status(400).json({ 
+          error: 'Missing required fields',
+          required: ['projectName', 'clientCompany', 'projectType', 'scopeOfWork']
+        });
+      }
+
+      const proposalId = uuidv4();
+      const currentTimestamp = new Date().toISOString();
+      
+      const proposalData = {
+        id: proposalId,
+        // Basic Info
+        projectName: projectName.trim(),
+        projectType,
+        clientCompany: clientCompany.trim(),
+        clientContact: clientContact || null,
+        clientEmail: clientEmail || null,
+        clientPhone: clientPhone || null,
+        country,
+        scopeOfWork: scopeOfWork.trim(),
+        timeline,
+        priority: priority || 'Medium',
+        estimatedValue: estimatedValue || null,
+        requirements: requirements || null,
+        deliverables: deliverables || null,
+        constraints: constraints || null,
+        assumptions: assumptions || null,
+
+        // Status and Workflow
+        status: 'pending_estimation',
+        currentStage: 'estimation',
         
-        const proposalData = {
-          id: proposalId,
-          // Basic Info
-          projectName: projectName.trim(),
-          projectType,
-          clientCompany: clientCompany.trim(),
-          clientContact: clientContact || null,
-          clientEmail: clientEmail || null,
-          clientPhone: clientPhone || null,
-          country,
-          scopeOfWork: scopeOfWork.trim(),
-          timeline,
-          priority: priority || 'Medium',
-          estimatedValue: estimatedValue || null,
-          requirements: requirements || null,
-          deliverables: deliverables || null,
-          constraints: constraints || null,
-          assumptions: assumptions || null,
+        // Creator Info
+        createdBy: req.user.uid,
+        createdByName: req.user.name,
+        createdByEmail: req.user.email,
+        createdAt: currentTimestamp,
+        updatedAt: currentTimestamp,
 
-          // Status and Workflow
-          status: 'pending_estimation',
-          currentStage: 'estimation',
-          
-          // Creator Info
-          createdBy: req.user.uid,
-          createdByName: req.user.name,
-          createdByEmail: req.user.email,
-          createdAt: currentTimestamp,
-          updatedAt: currentTimestamp,
-
-          // Workflow Tracking
-          workflow: {
-            bdm_submitted: {
-              status: 'completed',
-              completedAt: currentTimestamp,
-              completedBy: req.user.uid,
-              completedByName: req.user.name
-            },
-            estimation: { 
-              status: 'pending',
-              assignedAt: currentTimestamp
-            },
-            coo_pricing: { status: 'pending' },
-            director_approval: { status: 'pending' },
-            client_submission: { status: 'pending' }
+        // Workflow Tracking
+        workflow: {
+          bdm_submitted: {
+            status: 'completed',
+            completedAt: currentTimestamp,
+            completedBy: req.user.uid,
+            completedByName: req.user.name
           },
-
-          // Data containers
-          estimation: null,
-          pricing: null,
-          directorApproval: null,
-          clientSubmission: null,
-          
-          // File organization
-          files: {
-            requirements: [],
-            proposals: [],
-            contracts: [],
-            presentations: []
+          estimation: { 
+            status: 'pending',
+            assignedAt: currentTimestamp
           },
+          coo_pricing: { status: 'pending' },
+          director_approval: { status: 'pending' },
+          client_submission: { status: 'pending' }
+        },
 
-          // Metadata
-          version: 1,
-          tags: [],
-          notes: [],
-          changeLog: [{
-            timestamp: currentTimestamp,
-            action: 'created',
-            performedBy: req.user.uid,
-            performedByName: req.user.name,
-            details: 'Proposal created'
-          }]
-        };
+        // Data containers
+        estimation: null,
+        pricing: null,
+        directorApproval: null,
+        clientSubmission: null,
+        
+        // File organization
+        files: {
+          requirements: [],
+          proposals: [],
+          contracts: [],
+          presentations: []
+        },
 
-        // Save to Firestore
-        await db.collection('proposals').doc(proposalId).set(proposalData);
-
-        // Create activity log
-        await helpers.logActivity({
-          type: 'proposal_created',
-          proposalId,
-          projectName,
-          clientCompany,
+        // Metadata
+        version: 1,
+        tags: [],
+        notes: [],
+        changeLog: [{
+          timestamp: currentTimestamp,
+          action: 'created',
           performedBy: req.user.uid,
           performedByName: req.user.name,
-          details: `New proposal created for ${clientCompany}: ${projectName}`
-        });
+          details: 'Proposal created'
+        }]
+      };
 
-        // Create notifications for estimators
-        await createWorkflowNotifications(proposalId, null, 'pending_estimation', proposalData);
+      // Save to Firestore
+      await db.collection('proposals').doc(proposalId).set(proposalData);
 
-        res.status(201).json({
-          success: true,
-          message: 'Proposal created successfully',
-          proposalId,
-          data: proposalData
-        });
+      // Create activity log
+      await helpers.logActivity({
+        type: 'proposal_created',
+        proposalId,
+        projectName,
+        clientCompany,
+        performedBy: req.user.uid,
+        performedByName: req.user.name,
+        performedByRole: req.user.role,
+        details: `New proposal created for ${clientCompany}: ${projectName}`
+      });
 
-      } catch (error) {
-        console.error('Create proposal error:', error);
-        res.status(500).json({ error: 'Failed to create proposal', details: error.message });
-      }
-    });
+      // Create notifications for estimators
+      await createWorkflowNotifications(proposalId, null, 'pending_estimation', proposalData);
+
+      res.status(201).json({
+        success: true,
+        message: 'Proposal created successfully',
+        proposalId,
+        data: proposalData
+      });
+
+    } catch (error) {
+      console.error('Create proposal error:', error);
+      res.status(500).json({ error: 'Failed to create proposal', details: error.message });
+    }
   });
 }
 
@@ -180,6 +184,7 @@ async function getProposals(req, res) {
     try {
       const { role, uid } = req.user;
       const { 
+        id,
         status, 
         clientCompany,
         projectType,
@@ -193,6 +198,27 @@ async function getProposals(req, res) {
         dateTo,
         detailed = false
       } = req.query;
+      
+      // If requesting specific proposal by ID
+      if (id) {
+        const proposalDoc = await db.collection('proposals').doc(id).get();
+        if (!proposalDoc.exists) {
+          return res.status(404).json({ error: 'Proposal not found' });
+        }
+        
+        const proposalData = proposalDoc.data();
+        
+        // Check access permissions
+        const hasAccess = checkProposalAccess(proposalData, role, uid);
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        return res.json({
+          success: true,
+          data: { id: proposalDoc.id, ...proposalData }
+        });
+      }
       
       let query = db.collection('proposals');
 
@@ -406,13 +432,16 @@ async function updateProposal(req, res) {
           };
 
           // Add to change log
-          updateData['changeLog'] = helpers.arrayUnion([{
+          if (!updateData['changeLog']) {
+            updateData['changeLog'] = proposal.changeLog || [];
+          }
+          updateData['changeLog'].push({
             timestamp: currentTimestamp,
             action: 'estimation_completed',
             performedBy: req.user.uid,
             performedByName: req.user.name,
             details: `Estimation completed: ${data.totalHours} total hours`
-          }]);
+          });
           break;
 
         case 'set_pricing':
@@ -424,26 +453,34 @@ async function updateProposal(req, res) {
             return res.status(400).json({ error: 'Proposal is not in pricing stage' });
           }
           
+          const laborCost = proposal.estimation ? proposal.estimation.totalHours * parseFloat(data.hourlyRate) : 0;
+          const materialsCost = parseFloat(data.materialsCost) || 0;
+          const overheadCost = parseFloat(data.overheadCost) || 0;
+          const subtotal = laborCost + materialsCost + overheadCost;
+          const totalAmount = parseFloat(data.quoteValue);
+          const profitAmount = totalAmount - subtotal;
+
           updateData = {
             ...updateData,
             status: 'pending_director_approval',
             currentStage: 'director_approval',
             pricing: {
               hourlyRate: parseFloat(data.hourlyRate),
-              materialsCost: parseFloat(data.materialsCost) || 0,
-              overheadCost: parseFloat(data.overheadCost) || 0,
+              materialsCost: materialsCost,
+              overheadCost: overheadCost,
               profitMargin: parseFloat(data.profitMargin),
-              quoteValue: parseFloat(data.quoteValue),
+              quoteValue: totalAmount,
               currency: data.currency || 'USD',
               validityPeriod: data.validityPeriod || '30 days',
               paymentTerms: data.paymentTerms || 'Net 30',
               breakdown: {
-                laborCost: proposal.estimation ? proposal.estimation.totalHours * parseFloat(data.hourlyRate) : 0,
-                materialsCost: parseFloat(data.materialsCost) || 0,
-                overheadCost: parseFloat(data.overheadCost) || 0,
-                subtotal: 0,
-                profitAmount: 0,
-                totalAmount: parseFloat(data.quoteValue)
+                laborCost,
+                materialsCost,
+                overheadCost,
+                subtotal,
+                profitAmount,
+                totalAmount,
+                profitMargin: subtotal > 0 ? ((profitAmount / subtotal) * 100) : 0
               },
               pricedBy: req.user.uid,
               pricedByName: req.user.name,
@@ -463,31 +500,16 @@ async function updateProposal(req, res) {
             }
           };
 
-          // Calculate profit breakdown
-          const laborCost = proposal.estimation ? proposal.estimation.totalHours * parseFloat(data.hourlyRate) : 0;
-          const materialsCost = parseFloat(data.materialsCost) || 0;
-          const overheadCost = parseFloat(data.overheadCost) || 0;
-          const subtotal = laborCost + materialsCost + overheadCost;
-          const totalAmount = parseFloat(data.quoteValue);
-          const profitAmount = totalAmount - subtotal;
-
-          updateData.pricing.breakdown = {
-            laborCost,
-            materialsCost,
-            overheadCost,
-            subtotal,
-            profitAmount,
-            totalAmount,
-            profitMargin: subtotal > 0 ? ((profitAmount / subtotal) * 100) : 0
-          };
-
-          updateData['changeLog'] = helpers.arrayUnion([{
+          if (!updateData['changeLog']) {
+            updateData['changeLog'] = proposal.changeLog || [];
+          }
+          updateData['changeLog'].push({
             timestamp: currentTimestamp,
             action: 'pricing_set',
             performedBy: req.user.uid,
             performedByName: req.user.name,
-            details: `Pricing set: ${data.currency} ${data.quoteValue} with ${data.profitMargin}% margin`
-          }]);
+            details: `Pricing set: ${data.currency || 'USD'} ${data.quoteValue} with ${data.profitMargin}% margin`
+          });
           break;
 
         case 'director_approve':
@@ -527,13 +549,16 @@ async function updateProposal(req, res) {
             }
           };
 
-          updateData['changeLog'] = helpers.arrayUnion([{
+          if (!updateData['changeLog']) {
+            updateData['changeLog'] = proposal.changeLog || [];
+          }
+          updateData['changeLog'].push({
             timestamp: currentTimestamp,
             action: 'director_approved',
             performedBy: req.user.uid,
             performedByName: req.user.name,
-            details: `Executive approval granted`
-          }]);
+            details: 'Executive approval granted'
+          });
           break;
 
         case 'director_reject':
@@ -562,13 +587,16 @@ async function updateProposal(req, res) {
             }
           };
 
-          updateData['changeLog'] = helpers.arrayUnion([{
+          if (!updateData['changeLog']) {
+            updateData['changeLog'] = proposal.changeLog || [];
+          }
+          updateData['changeLog'].push({
             timestamp: currentTimestamp,
             action: 'director_rejected',
             performedBy: req.user.uid,
             performedByName: req.user.name,
             details: `Proposal rejected: ${data.rejectionReason}`
-          }]);
+          });
           break;
 
         case 'submit_to_client':
@@ -603,101 +631,16 @@ async function updateProposal(req, res) {
             }
           };
 
-          updateData['changeLog'] = helpers.arrayUnion([{
+          if (!updateData['changeLog']) {
+            updateData['changeLog'] = proposal.changeLog || [];
+          }
+          updateData['changeLog'].push({
             timestamp: currentTimestamp,
             action: 'submitted_to_client',
             performedBy: req.user.uid,
             performedByName: req.user.name,
             details: `Submitted to client via ${data.method || 'email'}`
-          }]);
-          break;
-
-        case 'client_response':
-          if (req.user.role !== 'bdm') {
-            return res.status(403).json({ error: 'Only BDM can update client response' });
-          }
-          
-          const responseStatus = data.response; // 'accepted', 'rejected', 'negotiating'
-          
-          updateData = {
-            ...updateData,
-            status: responseStatus === 'accepted' ? 'won' : 
-                   responseStatus === 'rejected' ? 'lost' : 'negotiating',
-            currentStage: responseStatus === 'accepted' ? 'won' : 
-                         responseStatus === 'rejected' ? 'lost' : 'negotiating',
-            clientResponse: {
-              response: responseStatus,
-              receivedAt: currentTimestamp,
-              receivedBy: req.user.uid,
-              receivedByName: req.user.name,
-              clientFeedback: data.clientFeedback || '',
-              negotiationPoints: data.negotiationPoints || [],
-              nextSteps: data.nextSteps || '',
-              contractValue: responseStatus === 'accepted' ? (data.contractValue || proposal.pricing.quoteValue) : null,
-              startDate: responseStatus === 'accepted' ? data.startDate : null,
-              notes: data.notes || ''
-            }
-          };
-
-          updateData['changeLog'] = helpers.arrayUnion([{
-            timestamp: currentTimestamp,
-            action: `client_${responseStatus}`,
-            performedBy: req.user.uid,
-            performedByName: req.user.name,
-            details: `Client ${responseStatus} the proposal`
-          }]);
-          break;
-
-        case 'update_basic_info':
-          // Allow BDM to update basic info if not yet in workflow
-          if (req.user.role !== 'bdm' || proposal.createdBy !== req.user.uid) {
-            return res.status(403).json({ error: 'Only the proposal creator can update basic information' });
-          }
-          
-          if (proposal.status !== 'pending_estimation') {
-            return res.status(400).json({ error: 'Basic information can only be updated before estimation begins' });
-          }
-
-          const allowedUpdates = ['projectName', 'clientCompany', 'clientContact', 'clientEmail', 'clientPhone', 'scopeOfWork', 'timeline', 'priority', 'requirements', 'deliverables', 'constraints', 'assumptions'];
-          
-          allowedUpdates.forEach(field => {
-            if (data[field] !== undefined) {
-              updateData[field] = data[field];
-            }
           });
-
-          updateData['changeLog'] = helpers.arrayUnion([{
-            timestamp: currentTimestamp,
-            action: 'basic_info_updated',
-            performedBy: req.user.uid,
-            performedByName: req.user.name,
-            details: 'Basic proposal information updated'
-          }]);
-          break;
-
-        case 'add_note':
-          const note = {
-            id: uuidv4(),
-            content: data.note,
-            addedBy: req.user.uid,
-            addedByName: req.user.name,
-            addedAt: currentTimestamp,
-            type: data.noteType || 'general' // general, internal, client, technical
-          };
-
-          updateData['notes'] = helpers.arrayUnion([note]);
-          updateData['changeLog'] = helpers.arrayUnion([{
-            timestamp: currentTimestamp,
-            action: 'note_added',
-            performedBy: req.user.uid,
-            performedByName: req.user.name,
-            details: `Note added: ${data.note.substring(0, 50)}...`
-          }]);
-          break;
-
-        case 'add_tags':
-          const newTags = Array.isArray(data.tags) ? data.tags : [data.tags];
-          updateData['tags'] = helpers.arrayUnion(newTags);
           break;
 
         default:
@@ -715,6 +658,7 @@ async function updateProposal(req, res) {
         clientCompany: proposal.clientCompany,
         performedBy: req.user.uid,
         performedByName: req.user.name,
+        performedByRole: req.user.role,
         details: `${action.replace(/_/g, ' ')} completed for ${proposal.projectName}`,
         metadata: { action, previousStatus: proposal.status, newStatus: updateData.status }
       });
@@ -746,63 +690,78 @@ async function updateProposal(req, res) {
 // Delete proposal (BDM only, and only if not in workflow)
 async function deleteProposal(req, res) {
   await verifyToken(req, res, async () => {
-    requireRole(['bdm', 'director'])(req, res, async () => {
-      try {
-        const { id } = req.query;
+    try {
+      const { id } = req.query;
 
-        if (!id) {
-          return res.status(400).json({ error: 'Proposal ID required' });
-        }
-
-        const proposalRef = db.collection('proposals').doc(id);
-        const proposalDoc = await proposalRef.get();
-
-        if (!proposalDoc.exists) {
-          return res.status(404).json({ error: 'Proposal not found' });
-        }
-
-        const proposal = proposalDoc.data();
-
-        // Only allow deletion if user created it or is director
-        if (proposal.createdBy !== req.user.uid && req.user.role !== 'director') {
-          return res.status(403).json({ error: 'You can only delete your own proposals' });
-        }
-
-        // Only allow deletion if proposal hasn't progressed beyond estimation
-        if (proposal.status !== 'pending_estimation' && req.user.role !== 'director') {
-          return res.status(400).json({ error: 'Cannot delete proposals that have entered the workflow. Contact director for assistance.' });
-        }
-
-        // Soft delete - mark as deleted instead of removing
-        await proposalRef.update({
-          status: 'deleted',
-          deletedAt: new Date().toISOString(),
-          deletedBy: req.user.uid,
-          deletedByName: req.user.name
-        });
-
-        // Log activity
-        await helpers.logActivity({
-          type: 'proposal_deleted',
-          proposalId: id,
-          projectName: proposal.projectName,
-          clientCompany: proposal.clientCompany,
-          performedBy: req.user.uid,
-          performedByName: req.user.name,
-          details: `Proposal deleted: ${proposal.projectName}`
-        });
-
-        res.json({
-          success: true,
-          message: 'Proposal deleted successfully'
-        });
-
-      } catch (error) {
-        console.error('Delete proposal error:', error);
-        res.status(500).json({ error: 'Failed to delete proposal', details: error.message });
+      if (!id) {
+        return res.status(400).json({ error: 'Proposal ID required' });
       }
-    });
+
+      const proposalRef = db.collection('proposals').doc(id);
+      const proposalDoc = await proposalRef.get();
+
+      if (!proposalDoc.exists) {
+        return res.status(404).json({ error: 'Proposal not found' });
+      }
+
+      const proposal = proposalDoc.data();
+
+      // Only allow deletion if user created it or is director
+      if (proposal.createdBy !== req.user.uid && req.user.role !== 'director') {
+        return res.status(403).json({ error: 'You can only delete your own proposals' });
+      }
+
+      // Only allow deletion if proposal hasn't progressed beyond estimation
+      if (proposal.status !== 'pending_estimation' && req.user.role !== 'director') {
+        return res.status(400).json({ error: 'Cannot delete proposals that have entered the workflow. Contact director for assistance.' });
+      }
+
+      // Soft delete - mark as deleted instead of removing
+      await proposalRef.update({
+        status: 'deleted',
+        deletedAt: new Date().toISOString(),
+        deletedBy: req.user.uid,
+        deletedByName: req.user.name
+      });
+
+      // Log activity
+      await helpers.logActivity({
+        type: 'proposal_deleted',
+        proposalId: id,
+        projectName: proposal.projectName,
+        clientCompany: proposal.clientCompany,
+        performedBy: req.user.uid,
+        performedByName: req.user.name,
+        performedByRole: req.user.role,
+        details: `Proposal deleted: ${proposal.projectName}`
+      });
+
+      res.json({
+        success: true,
+        message: 'Proposal deleted successfully'
+      });
+
+    } catch (error) {
+      console.error('Delete proposal error:', error);
+      res.status(500).json({ error: 'Failed to delete proposal', details: error.message });
+    }
   });
+}
+
+// Helper functions
+function checkProposalAccess(proposal, role, uid) {
+  switch (role) {
+    case 'bdm':
+      return proposal.createdBy === uid;
+    case 'estimator':
+      return proposal.status === 'pending_estimation';
+    case 'coo':
+      return ['pending_pricing', 'pending_director_approval', 'approved'].includes(proposal.status);
+    case 'director':
+      return true; // Directors can access all proposals
+    default:
+      return false;
+  }
 }
 
 // Helper function to create workflow notifications
@@ -856,7 +815,7 @@ async function createWorkflowNotifications(proposalId, fromStatus, toStatus, pro
     }
 
     // Create notification documents
-    const batch = helpers.getBatch();
+    const batch = db.batch();
     
     targetUsers.forEach(user => {
       const notificationRef = db.collection('notifications').doc();
@@ -875,7 +834,7 @@ async function createWorkflowNotifications(proposalId, fromStatus, toStatus, pro
           projectName: proposalData.projectName,
           clientCompany: proposalData.clientCompany
         },
-        createdAt: helpers.serverTimestamp()
+        createdAt: new Date().toISOString()
       });
     });
 
