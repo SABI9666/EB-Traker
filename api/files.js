@@ -1,5 +1,5 @@
-const { db, storage, helpers } = require('./firebase-config');
-const { verifyToken, requireRole } = require('./middleware/auth');
+const { db, storage, helpers } = require('../firebase-config');
+const { verifyToken, requireRole } = require('../middleware/auth');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 
@@ -75,7 +75,7 @@ const handler = async (req, res) => {
 // Upload single or multiple files
 async function uploadFile(req, res) {
   await verifyToken(req, res, async () => {
-    // Use multer middleware for single file upload
+    // Use multer middleware for file upload
     upload.array('files', 5)(req, res, async (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
@@ -109,7 +109,11 @@ async function uploadFile(req, res) {
             `proposals/${proposalId}/${category}/${fileName}` : 
             `general/${req.user.uid}/${category}/${fileName}`;
 
-          // Upload to Firebase Storage
+          // For demo/development - simulate file storage
+          let downloadUrl = `${req.protocol}://${req.get('host')}/files/${fileId}`;
+          
+          // In production, you would actually upload to Firebase Storage:
+          /*
           const bucket = storage.bucket();
           const storageFile = bucket.file(filePath);
           
@@ -125,11 +129,12 @@ async function uploadFile(req, res) {
             }
           });
 
-          // Get download URL
           const [url] = await storageFile.getSignedUrl({
             action: 'read',
-            expires: '03-09-2491' // Far future date
+            expires: '03-09-2491'
           });
+          downloadUrl = url;
+          */
 
           // Prepare file metadata for Firestore
           const fileData = {
@@ -143,11 +148,11 @@ async function uploadFile(req, res) {
             description: description,
             tags: tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
             proposalId: proposalId || null,
-            downloadUrl: url,
+            downloadUrl: downloadUrl,
             uploadedBy: req.user.uid,
             uploadedByName: req.user.name,
             uploadedAt: new Date().toISOString(),
-            accessLevel: 'internal', // internal, client, public
+            accessLevel: 'internal',
             status: 'active',
             downloadCount: 0,
             lastAccessedAt: null
@@ -412,8 +417,9 @@ async function deleteFile(req, res) {
         return res.status(403).json({ error: 'You can only delete files you uploaded' });
       }
 
+      // In production, delete from Firebase Storage:
+      /*
       try {
-        // Delete from Firebase Storage
         const bucket = storage.bucket();
         const file = bucket.file(fileData.filePath);
         await file.delete();
@@ -421,6 +427,7 @@ async function deleteFile(req, res) {
         console.error('Storage deletion error:', storageError);
         // Continue with database deletion even if storage fails
       }
+      */
 
       // Mark as deleted in Firestore (soft delete)
       await fileRef.update({
