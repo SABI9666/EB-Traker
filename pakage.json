@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vercel dev",
     "build": "node build.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "deploy": "vercel --prod"
   },
   "dependencies": {
     "firebase-admin": "^11.10.1",
@@ -17,9 +18,19 @@
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
-    "@vercel/node": "^3.0.7"
+    "@vercel/node": "^3.0.7",
+    "vercel": "^32.0.0"
   },
   "engines": {
     "node": "18.x"
-  }
+  },
+  "keywords": [
+    "project-management",
+    "workflow",
+    "firebase",
+    "vercel",
+    "ebtracker"
+  ],
+  "author": "EDANBROOK",
+  "license": "MIT"
 }
