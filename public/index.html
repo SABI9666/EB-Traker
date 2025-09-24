@@ -721,9 +721,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        // Firebase Configuration
+        // Firebase Configuration - REPLACE WITH YOUR ACTUAL CONFIG
         const firebaseConfig = {
-            apiKey: "YOUR_FIREBASE_WEB_API_KEY", // IMPORTANT: Replace with your actual Firebase Web API Key
+            apiKey: "AIzaSyCNvNvdvn5LHt6P9dASGNGgIEFUIaxRp4s", // Replace with your actual API key
             authDomain: "eb-tracker-42881.firebaseapp.com",
             projectId: "eb-tracker-42881",
             storageBucket: "eb-tracker-42881.appspot.com",
@@ -741,17 +741,16 @@
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 return 'http://localhost:3000';
             }
-            // Use the actual deployed Vercel URL here
-            return 'https://eb-traker.vercel.app'; 
+            return 'https://eb-traker.vercel.app'; // Your actual Vercel URL
         }
         const API_BASE = getApiBase();
         console.log('API Base URL:', API_BASE);
 
-        // Authorized users configuration (for client-side validation before registration)
+        // Authorized users configuration
         const authorizedUsers = {
             estimator: [
                 "john.estimator@edanbrook.com",
-                "sarah.technical@edanbrook.com",
+                "sarah.technical@edanbrook.com", 
                 "mike.estimation@edanbrook.com",
                 "estimator@edanbrook.com"
             ],
@@ -773,7 +772,7 @@
         let currentUserRole = '';
         let authToken = '';
 
-        // --- API Helper Function ---
+        // --- IMPROVED API Helper Function ---
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
             const defaultOptions = {
@@ -797,20 +796,36 @@
             };
 
             try {
+                console.log('Making API call to:', url);
+                console.log('With options:', finalOptions);
+
                 const response = await fetch(url, finalOptions);
-                const textResponse = await response.text();
+                console.log('Response status:', response.status);
+                
+                const responseText = await response.text();
+                console.log('Response text:', responseText.substring(0, 500)); // Log first 500 chars
 
                 if (!response.ok) {
-                     let errorData;
+                    let errorData;
                     try {
-                        errorData = JSON.parse(textResponse);
+                        errorData = JSON.parse(responseText);
                     } catch (e) {
-                         throw new Error(`API Error: ${response.status} - The server returned a non-JSON response. Check the Vercel function logs for backend crash details.`);
+                        console.error('Failed to parse error response:', e);
+                        throw new Error(`API Error ${response.status}: The server returned a non-JSON response. Raw response: ${responseText.substring(0, 200)}...`);
                     }
-                    throw new Error(errorData.error || `Request failed with status ${response.status}`);
+                    throw new Error(errorData.message || errorData.error || `Request failed with status ${response.status}`);
                 }
                 
-                return textResponse ? JSON.parse(textResponse) : {};
+                if (!responseText) {
+                    return {};
+                }
+
+                try {
+                    return JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse success response:', parseError);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`);
+                }
             } catch (error) {
                 console.error('API call error:', error);
                 throw error;
@@ -818,12 +833,22 @@
         }
 
         // --- Utility Functions ---
-        function showLoading() { document.getElementById('loadingSpinner').style.display = 'block'; }
-        function hideLoading() { document.getElementById('loadingSpinner').style.display = 'none'; }
+        function showLoading() { 
+            const spinner = document.getElementById('loadingSpinner');
+            if (spinner) spinner.style.display = 'block'; 
+        }
+        
+        function hideLoading() { 
+            const spinner = document.getElementById('loadingSpinner');
+            if (spinner) spinner.style.display = 'none'; 
+        }
+        
         function setActiveNav(navId) {
             document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
-            document.getElementById(navId).classList.add('active');
+            const navElement = document.getElementById(navId);
+            if (navElement) navElement.classList.add('active');
         }
+        
         function showMessage(message, type = 'info') {
             const container = document.getElementById('authMessages');
             if(container) {
@@ -832,10 +857,12 @@
                 alert(`${type.toUpperCase()}: ${message}`);
             }
         }
+        
         function clearMessages() {
             const container = document.getElementById('authMessages');
             if(container) container.innerHTML = '';
         }
+        
         function closeModal() {
             const modal = document.querySelector('.modal-overlay');
             if (modal) {
@@ -851,11 +878,15 @@
                     currentUser = user;
                     try {
                         authToken = await user.getIdToken();
+                        console.log('Got auth token, length:', authToken.length);
+                        
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
+                            console.log('User role:', currentUserRole);
                             showApp();
                         } else {
+                            console.error('User document not found in Firestore');
                             await auth.signOut();
                             showMessage('Account Error: User data not found.', 'error');
                         }
@@ -901,6 +932,7 @@
                 showMessage('Logging in...', 'info');
                 await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
+                console.error('Login error:', error);
                 let errorMessage = 'Login failed. Please check your credentials.';
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                      errorMessage = 'Invalid email or password.';
@@ -933,6 +965,7 @@
                 });
                 showMessage('Account created! Logging you in...', 'success');
             } catch (error) {
+                console.error('Registration error:', error);
                 let errorMessage = 'Registration failed. Please try again.';
                 if (error.code === 'auth/email-already-in-use') {
                     errorMessage = 'An account with this email already exists.';
@@ -971,30 +1004,76 @@
         async function showDashboard() {
             setActiveNav('nav-dashboard');
             showLoading();
-            document.getElementById('mainContent').innerHTML = '';
+            const mainContent = document.getElementById('mainContent');
+            
+            // Clear content except for loading spinner
+            Array.from(mainContent.children).forEach(child => {
+                if (child.id !== 'loadingSpinner') {
+                    child.remove();
+                }
+            });
 
             try {
+                console.log('Fetching dashboard data...');
                 const dashboardData = await apiCall('dashboard');
-                renderDashboard(dashboardData.data);
+                console.log('Dashboard data received:', dashboardData);
+                
+                if (dashboardData.success && dashboardData.data) {
+                    renderDashboard(dashboardData.data);
+                } else {
+                    throw new Error('Invalid dashboard response format');
+                }
             } catch (error) {
-                document.getElementById('mainContent').innerHTML = `
+                console.error('Dashboard error:', error);
+                const errorDiv = document.createElement('div');
+                errorDiv.innerHTML = `
                     <div class="error-message">
                         <h3>Error Loading Dashboard</h3>
                         <p>${error.message}</p>
+                        <div class="debug-info">
+                            <strong>Debug Information:</strong><br>
+                            API Base: ${API_BASE}<br>
+                            User Role: ${currentUserRole}<br>
+                            Has Token: ${!!authToken}<br>
+                            Current User: ${currentUser?.email || 'None'}
+                        </div>
                         <button onclick="showDashboard()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
+                        <button onclick="testAPI()" class="btn btn-outline" style="margin-top: 1rem; margin-left: 1rem;">Test API</button>
                     </div>`;
+                mainContent.appendChild(errorDiv);
             } finally {
                 hideLoading();
             }
         }
 
+        // Test API function for debugging
+        async function testAPI() {
+            showMessage('Testing API connection...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const text = await response.text();
+                console.log('Raw API response:', text);
+                showMessage(`API Test - Status: ${response.status}, Response: ${text.substring(0, 100)}...`, response.ok ? 'success' : 'error');
+            } catch (error) {
+                console.error('API test error:', error);
+                showMessage(`API Test Failed: ${error.message}`, 'error');
+            }
+        }
+
         function renderDashboard(data) {
-            const statsHtml = Object.entries(data.stats).map(([key, value]) => `
+            console.log('Rendering dashboard with data:', data);
+            
+            const statsHtml = data.stats ? Object.entries(data.stats).map(([key, value]) => `
                 <div class="stat-card">
                     <div class="stat-number">${value}</div>
                     <div class="stat-label">${formatStatLabel(key)}</div>
                 </div>
-            `).join('');
+            `).join('') : '<p>No stats available</p>';
 
             const actionItemsHtml = data.actionItems && data.actionItems.length > 0 ? `
                 <h3>Your Action Items</h3>
@@ -1013,22 +1092,29 @@
                 `).join('')}` 
                 : `<h3>Action Items</h3><p>No pending action items. All caught up!</p>`;
 
-            document.getElementById('mainContent').innerHTML = `
+            const dashboardDiv = document.createElement('div');
+            dashboardDiv.innerHTML = `
                 <h2>Dashboard - ${currentUserRole.toUpperCase()}</h2>
                 <div class="dashboard-stats">${statsHtml}</div>
                 <div class="action-items">${actionItemsHtml}</div>
                 ${data.recentActivities ? renderRecentActivities(data.recentActivities) : ''}
             `;
+            
+            document.getElementById('mainContent').appendChild(dashboardDiv);
         }
 
         // --- Proposals Management ---
         async function showProposals() {
             setActiveNav('nav-proposals');
             showLoading();
-            document.getElementById('mainContent').innerHTML = '';
+            document.getElementById('mainContent').innerHTML = '<div class="loading" id="loadingSpinner"><div class="spinner"></div><p>Loading...</p></div>';
             try {
                 const proposalsData = await apiCall('proposals');
-                renderProposals(proposalsData.data);
+                if (proposalsData.success && proposalsData.data) {
+                    renderProposals(proposalsData.data);
+                } else {
+                    throw new Error('Invalid proposals response format');
+                }
             } catch (error) {
                 document.getElementById('mainContent').innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
             } finally {
@@ -1066,7 +1152,11 @@
             showLoading();
             try {
                 const proposalData = await apiCall(`proposals?id=${proposalId}`);
-                renderProposalDetailModal(proposalData.data);
+                if (proposalData.success && proposalData.data) {
+                    renderProposalDetailModal(proposalData.data);
+                } else {
+                    throw new Error('Invalid proposal response format');
+                }
             } catch (error) {
                 alert(`Error fetching proposal: ${error.message}`);
             } finally {
@@ -1104,9 +1194,14 @@
                     scopeOfWork: document.getElementById('scopeOfWork').value,
                 };
                 try {
-                    await apiCall('proposals', { method: 'POST', body: JSON.stringify(formData) });
-                    closeModal();
-                    showProposals();
+                    const response = await apiCall('proposals', { method: 'POST', body: JSON.stringify(formData) });
+                    if (response.success) {
+                        closeModal();
+                        showProposals();
+                        alert('Proposal created successfully!');
+                    } else {
+                        throw new Error(response.error || 'Creation failed');
+                    }
                 } catch (error) {
                     alert(`Creation failed: ${error.message}`);
                 }
@@ -1177,9 +1272,14 @@
                     notes: document.getElementById('notes').value
                 };
                 try {
-                    await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'add_estimation', data }) });
-                    closeModal();
-                    showDashboard(); // Refresh view
+                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'add_estimation', data }) });
+                    if (response.success) {
+                        closeModal();
+                        showDashboard();
+                        alert('Estimation added successfully!');
+                    } else {
+                        throw new Error(response.error || 'Update failed');
+                    }
                 } catch(err) { alert(`Error: ${err.message}`); }
             });
         }
@@ -1210,9 +1310,14 @@
                     quoteValue: document.getElementById('quoteValue').value
                 };
                  try {
-                    await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'set_pricing', data }) });
-                    closeModal();
-                    showDashboard();
+                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'set_pricing', data }) });
+                    if (response.success) {
+                        closeModal();
+                        showDashboard();
+                        alert('Pricing set successfully!');
+                    } else {
+                        throw new Error(response.error || 'Update failed');
+                    }
                 } catch(err) { alert(`Error: ${err.message}`); }
             });
         }
@@ -1220,9 +1325,14 @@
         async function approveProposal(proposalId) {
             const data = { notes: 'Approved by Director via EBTracker.' };
             try {
-                await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'director_approve', data }) });
-                closeModal();
-                showDashboard();
+                const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'director_approve', data }) });
+                if (response.success) {
+                    closeModal();
+                    showDashboard();
+                    alert('Proposal approved successfully!');
+                } else {
+                    throw new Error(response.error || 'Approval failed');
+                }
             } catch(err) { alert(`Error: ${err.message}`); }
         }
 
@@ -1231,9 +1341,14 @@
             if (rejectionReason) {
                 const data = { rejectionReason };
                 try {
-                    await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'director_reject', data }) });
-                    closeModal();
-                    showDashboard();
+                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'director_reject', data }) });
+                    if (response.success) {
+                        closeModal();
+                        showDashboard();
+                        alert('Proposal rejected.');
+                    } else {
+                        throw new Error(response.error || 'Rejection failed');
+                    }
                 } catch(err) { alert(`Error: ${err.message}`); }
             }
         }
@@ -1243,9 +1358,14 @@
             if(method) {
                 const data = { method };
                 try {
-                    await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'submit_to_client', data }) });
-                    closeModal();
-                    showDashboard();
+                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'submit_to_client', data }) });
+                    if (response.success) {
+                        closeModal();
+                        showDashboard();
+                        alert('Proposal submitted to client successfully!');
+                    } else {
+                        throw new Error(response.error || 'Submission failed');
+                    }
                 } catch(err) { alert(`Error: ${err.message}`); }
             }
         }
@@ -1268,7 +1388,7 @@
                 <button class="btn btn-primary" onclick="handleFileUpload()" id="uploadBtn" style="display:none;">Upload Files</button>
                 <hr style="margin: 2rem 0;">
                 <h2>Uploaded Files</h2>
-                <div id="fileListContainer"></div>
+                <div id="fileListContainer">Loading files...</div>
             `;
             document.getElementById('mainContent').innerHTML = content;
 
@@ -1319,9 +1439,13 @@
             
             showLoading();
             try {
-                await apiCall('files', { method: 'POST', body: formData });
-                alert('Files uploaded successfully!');
-                showFileUpload(); // Refresh view
+                const response = await apiCall('files', { method: 'POST', body: formData });
+                if (response.success) {
+                    alert('Files uploaded successfully!');
+                    showFileUpload(); // Refresh view
+                } else {
+                    throw new Error(response.error || 'Upload failed');
+                }
             } catch (error) {
                 alert(`Upload failed: ${error.message}`);
             } finally {
@@ -1332,7 +1456,11 @@
         async function showFiles() {
             try {
                 const filesData = await apiCall('files');
-                renderFiles(filesData.data);
+                if (filesData.success && filesData.data) {
+                    renderFiles(filesData.data);
+                } else {
+                    throw new Error(filesData.error || 'Invalid files response');
+                }
             } catch (error) {
                 document.getElementById('fileListContainer').innerHTML = `<p class="error-message">${error.message}</p>`;
             }
@@ -1361,9 +1489,13 @@
         async function deleteFile(fileId) {
             if (!confirm('Are you sure you want to delete this file?')) return;
             try {
-                await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
-                alert('File deleted');
-                showFileUpload();
+                const response = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
+                if (response.success) {
+                    alert('File deleted');
+                    showFileUpload();
+                } else {
+                    throw new Error(response.error || 'Delete failed');
+                }
             } catch(err) {
                 alert(`Error: ${err.message}`);
             }
@@ -1373,23 +1505,27 @@
         async function showActivities() {
             setActiveNav('nav-activities');
             showLoading();
-            document.getElementById('mainContent').innerHTML = '';
+            document.getElementById('mainContent').innerHTML = '<div class="loading" id="loadingSpinner"><div class="spinner"></div><p>Loading...</p></div>';
             try {
                 const activitiesData = await apiCall('activities');
-                const activitiesHtml = `
-                    <h2>Activity Log</h2>
-                    <div class="action-items">
-                    ${activitiesData.data.map(act => `
-                        <div class="action-item">
-                            <strong>${act.details}</strong>
-                            <div class="action-meta">
-                                By ${act.performedByName} (${act.performedByRole}) on ${new Date(act.timestamp).toLocaleString()}
+                if (activitiesData.success && activitiesData.data) {
+                    const activitiesHtml = `
+                        <h2>Activity Log</h2>
+                        <div class="action-items">
+                        ${activitiesData.data.map(act => `
+                            <div class="action-item">
+                                <strong>${act.details}</strong>
+                                <div class="action-meta">
+                                    By ${act.performedByName} (${act.performedByRole}) on ${new Date(act.timestamp).toLocaleString()}
+                                </div>
                             </div>
+                        `).join('')}
                         </div>
-                    `).join('')}
-                    </div>
-                `;
-                document.getElementById('mainContent').innerHTML = activitiesHtml;
+                    `;
+                    document.getElementById('mainContent').innerHTML = activitiesHtml;
+                } else {
+                    throw new Error(activitiesData.error || 'Invalid activities response');
+                }
             } catch (error) {
                 document.getElementById('mainContent').innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
             } finally {
