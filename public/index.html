@@ -723,7 +723,7 @@
     <script>
         // Firebase Configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU", // Replace with your actual Firebase Web API Key
+            apiKey: "YOUR_FIREBASE_WEB_API_KEY", // IMPORTANT: Replace with your actual Firebase Web API Key
             authDomain: "eb-tracker-42881.firebaseapp.com",
             projectId: "eb-tracker-42881",
             storageBucket: "eb-tracker-42881.appspot.com",
@@ -741,7 +741,8 @@
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 return 'http://localhost:3000';
             }
-            return window.location.origin;
+            // Use the actual deployed Vercel URL here
+            return 'https://eb-traker.vercel.app'; 
         }
         const API_BASE = getApiBase();
         console.log('API Base URL:', API_BASE);
@@ -804,7 +805,7 @@
                     try {
                         errorData = JSON.parse(textResponse);
                     } catch (e) {
-                         throw new Error(`API Error: ${response.status} - ${textResponse}`);
+                         throw new Error(`API Error: ${response.status} - The server returned a non-JSON response. Check the Vercel function logs for backend crash details.`);
                     }
                     throw new Error(errorData.error || `Request failed with status ${response.status}`);
                 }
@@ -901,7 +902,7 @@
                 await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
                 let errorMessage = 'Login failed. Please check your credentials.';
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                      errorMessage = 'Invalid email or password.';
                 }
                 showMessage(errorMessage, 'error');
@@ -1434,14 +1435,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
