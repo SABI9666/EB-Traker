@@ -1,3 +1,6 @@
+const { db } = require('../firebase-config');
+const { verifyToken } = require('../middleware/auth');
+
 const allowCors = fn => async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,184 +33,75 @@ const handler = async (req, res) => {
 
 // Get dashboard data based on user role
 async function getDashboardData(req, res) {
-  try {
-    // First check if we have the required environment variables
-    const hasFirebaseConfig = !!(
-      process.env.FIREBASE_PROJECT_ID && 
-      process.env.FIREBASE_PRIVATE_KEY && 
-      process.env.FIREBASE_CLIENT_EMAIL
-    );
-
-    if (!hasFirebaseConfig) {
-      console.error('Missing Firebase environment variables');
-      return res.status(500).json({
-        error: 'Configuration error',
-        message: 'Firebase environment variables not properly configured',
-        debug: {
-          hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-          hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-          hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL
-        }
-      });
-    }
-
-    // Try to initialize Firebase and auth
-    let db, user;
+  await verifyToken(req, res, async () => {
     try {
-      const { db: firestore } = require('./firebase-config');
-      const { verifyToken } = require('./middleware/auth');
-      db = firestore;
+      const { role, uid } = req.user;
+      
+      console.log('Loading dashboard for:', { role, uid });
 
-      // Verify the user token
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ 
-          error: 'Unauthorized', 
-          message: 'No token provided'
-        });
+      let dashboardData;
+      
+      switch (role) {
+        case 'bdm':
+          dashboardData = await getBdmDashboard(uid, db);
+          break;
+        case 'estimator':
+          dashboardData = await getEstimatorDashboard(uid, db);
+          break;
+        case 'coo':
+          dashboardData = await getCooDashboard(uid, db);
+          break;
+        case 'director':
+          dashboardData = await getDirectorDashboard(uid, db);
+          break;
+        default:
+          return res.status(400).json({ 
+            error: 'Invalid user role',
+            role: role 
+          });
       }
 
-      const idToken = authHeader.split('Bearer ')[1];
-      const admin = require('firebase-admin');
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      
-      const userDoc = await db.collection('users').doc(decodedToken.uid).get();
-      if (!userDoc.exists) {
-        return res.status(404).json({ 
-          error: 'User not found', 
-          message: 'User data not found in database'
-        });
-      }
-
-      user = {
-        uid: decodedToken.uid,
-        email: decodedToken.email,
-        ...userDoc.data()
-      };
-
-    } catch (firebaseError) {
-      console.error('Firebase initialization or auth error:', firebaseError);
-      
-      // Return mock data if Firebase fails but we have basic info
-      return res.json({
+      res.json({
         success: true,
-        data: getMockDashboardData(),
-        message: 'Using mock data - Firebase connection issue',
-        timestamp: new Date().toISOString()
+        data: dashboardData,
+        generatedAt: new Date().toISOString(),
+        userRole: role
+      });
+
+    } catch (error) {
+      console.error('Get dashboard data error:', error);
+      res.status(500).json({ 
+        error: 'Failed to load dashboard', 
+        details: error.message 
       });
     }
-
-    // Generate dashboard data based on user role
-    let dashboardData;
-    const { role, uid } = user;
-
-    switch (role) {
-      case 'bdm':
-        dashboardData = await getBdmDashboard(uid, db);
-        break;
-      case 'estimator':
-        dashboardData = await getEstimatorDashboard(uid, db);
-        break;
-      case 'coo':
-        dashboardData = await getCooDashboard(uid, db);
-        break;
-      case 'director':
-        dashboardData = await getDirectorDashboard(uid, db);
-        break;
-      default:
-        return res.status(400).json({ 
-          error: 'Invalid user role',
-          role: role 
-        });
-    }
-
-    res.json({
-      success: true,
-      data: dashboardData,
-      generatedAt: new Date().toISOString(),
-      userRole: role
-    });
-
-  } catch (error) {
-    console.error('Get dashboard data error:', error);
-    
-    // Fallback to mock data if everything fails
-    res.json({
-      success: true,
-      data: getMockDashboardData(),
-      message: 'Using mock data due to error: ' + error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-}
-
-// Mock data function for testing
-function getMockDashboardData() {
-  return {
-    stats: {
-      totalProposals: 8,
-      activeProposals: 5,
-      approvedProposals: 2,
-      pipelineValue: '$285,000',
-      winRate: '75%'
-    },
-    actionItems: [
-      {
-        type: 'estimation_required',
-        proposalId: 'mock-1',
-        projectName: 'HVAC System Upgrade',
-        clientCompany: 'ABC Manufacturing',
-        priority: 'high'
-      },
-      {
-        type: 'ready_for_client',
-        proposalId: 'mock-2',
-        projectName: 'Cooling Tower Installation',
-        clientCompany: 'XYZ Corp',
-        priority: 'medium'
-      }
-    ],
-    recentActivities: [
-      {
-        details: 'New proposal created for ABC Manufacturing',
-        performedByName: 'John BDM',
-        timestamp: new Date(Date.now() - 86400000).toISOString(),
-        projectName: 'HVAC System Upgrade'
-      },
-      {
-        details: 'Estimation completed for XYZ Corp project',
-        performedByName: 'Sarah Estimator',
-        timestamp: new Date(Date.now() - 172800000).toISOString(),
-        projectName: 'Cooling Tower Installation'
-      }
-    ]
-  };
+  });
 }
 
 // BDM Dashboard
 async function getBdmDashboard(uid, db) {
   try {
+    // Get user's proposals
     const proposalsQuery = db.collection('proposals').where('createdBy', '==', uid);
     const proposalsSnapshot = await proposalsQuery.get();
     
     const proposals = [];
-    proposalsSnapshot.forEach(doc => proposals.push({ id: doc.id, ...doc.data() }));
+    proposalsSnapshot.forEach(doc => {
+      const data = doc.data();
+      proposals.push({ id: doc.id, ...data });
+    });
 
+    // Calculate stats
+    const activeStatuses = ['pending_estimation', 'pending_pricing', 'pending_director_approval'];
     const stats = {
       totalProposals: proposals.length,
-      activeProposals: proposals.filter(p => 
-        ['pending_estimation', 'pending_pricing', 'pending_director_approval'].includes(p.status)
-      ).length,
+      activeProposals: proposals.filter(p => activeStatuses.includes(p.status)).length,
       approvedProposals: proposals.filter(p => p.status === 'approved').length,
-      pipelineValue: '$' + proposals.reduce((sum, p) => {
-        if (p.pricing && p.pricing.quoteValue) {
-          return sum + parseFloat(p.pricing.quoteValue.replace(/[,$]/g, ''));
-        }
-        return sum;
-      }, 0).toLocaleString(),
-      winRate: proposals.length > 0 ? Math.round((proposals.filter(p => p.status === 'approved').length / proposals.length) * 100) + '%' : '0%'
+      pipelineValue: calculatePipelineValue(proposals),
+      winRate: calculateWinRate(proposals)
     };
 
+    // Get action items
     const actionItems = proposals
       .filter(p => p.status === 'approved')
       .slice(0, 3)
@@ -219,30 +113,45 @@ async function getBdmDashboard(uid, db) {
         priority: p.priority || 'medium'
       }));
 
+    // Get recent activities
     const recentActivities = await getRecentActivities(uid, db, 5);
 
     return { stats, actionItems, recentActivities };
     
   } catch (error) {
     console.error('BDM dashboard error:', error);
-    return getMockDashboardData();
+    return getDefaultDashboard('bdm');
   }
 }
 
 // Estimator Dashboard
 async function getEstimatorDashboard(uid, db) {
   try {
+    // Get pending estimations
     const pendingQuery = db.collection('proposals').where('status', '==', 'pending_estimation');
     const pendingSnapshot = await pendingQuery.get();
     
     const pendingEstimations = [];
-    pendingSnapshot.forEach(doc => pendingEstimations.push({ id: doc.id, ...doc.data() }));
+    pendingSnapshot.forEach(doc => {
+      const data = doc.data();
+      pendingEstimations.push({ id: doc.id, ...data });
+    });
+
+    // Get completed estimations by this user
+    const completedQuery = db.collection('proposals').where('estimation.estimatedBy', '==', uid);
+    const completedSnapshot = await completedQuery.get();
+    
+    const completedEstimations = [];
+    completedSnapshot.forEach(doc => {
+      const data = doc.data();
+      completedEstimations.push({ id: doc.id, ...data });
+    });
 
     const stats = {
       pendingEstimations: pendingEstimations.length,
-      completedThisMonth: 0, // Would need date filtering
-      totalCompleted: 0, // Would need historical data
-      avgTurnaroundTime: '2.5 days'
+      completedThisMonth: getThisMonthCount(completedEstimations),
+      totalCompleted: completedEstimations.length,
+      avgTurnaroundTime: '2.3 days'
     };
 
     const actionItems = pendingEstimations.slice(0, 5).map(p => ({
@@ -259,24 +168,36 @@ async function getEstimatorDashboard(uid, db) {
     
   } catch (error) {
     console.error('Estimator dashboard error:', error);
-    return getMockDashboardData();
+    return getDefaultDashboard('estimator');
   }
 }
 
 // COO Dashboard  
 async function getCooDashboard(uid, db) {
   try {
+    // Get pending pricing approvals
     const pricingQuery = db.collection('proposals').where('status', '==', 'pending_pricing');
     const pricingSnapshot = await pricingQuery.get();
     
     const pendingPricing = [];
-    pricingSnapshot.forEach(doc => pendingPricing.push({ id: doc.id, ...doc.data() }));
+    pricingSnapshot.forEach(doc => {
+      const data = doc.data();
+      pendingPricing.push({ id: doc.id, ...data });
+    });
+
+    // Get all proposals with pricing for revenue calculation
+    const allProposalsSnapshot = await db.collection('proposals').get();
+    const allProposals = [];
+    allProposalsSnapshot.forEach(doc => {
+      const data = doc.data();
+      allProposals.push({ id: doc.id, ...data });
+    });
 
     const stats = {
       pendingPricing: pendingPricing.length,
-      revenueThisQuarter: '$0', // Would need calculation
-      averageMargin: '28%',
-      pricingCompletedThisMonth: 0
+      revenueThisQuarter: calculateQuarterRevenue(allProposals),
+      averageMargin: calculateAverageMargin(allProposals),
+      pricingCompletedThisMonth: getThisMonthPricingCount(allProposals)
     };
 
     const actionItems = pendingPricing.slice(0, 5).map(p => ({
@@ -287,32 +208,48 @@ async function getCooDashboard(uid, db) {
       priority: p.priority || 'medium'
     }));
 
-    const recentActivities = await getRecentActivities(uid, db, 5);
+    const recentActivities = await getRecentActivities(null, db, 5, 'coo');
 
     return { stats, actionItems, recentActivities };
     
   } catch (error) {
     console.error('COO dashboard error:', error);
-    return getMockDashboardData();
+    return getDefaultDashboard('coo');
   }
 }
 
 // Director Dashboard
 async function getDirectorDashboard(uid, db) {
   try {
+    // Get pending director approvals
     const approvalQuery = db.collection('proposals').where('status', '==', 'pending_director_approval');
     const approvalSnapshot = await approvalQuery.get();
     
     const pendingApproval = [];
-    approvalSnapshot.forEach(doc => pendingApproval.push({ id: doc.id, ...doc.data() }));
+    approvalSnapshot.forEach(doc => {
+      const data = doc.data();
+      pendingApproval.push({ id: doc.id, ...data });
+    });
+
+    // Get all proposals for comprehensive stats
+    const allProposalsSnapshot = await db.collection('proposals').get();
+    const allProposals = [];
+    allProposalsSnapshot.forEach(doc => {
+      const data = doc.data();
+      allProposals.push({ id: doc.id, ...data });
+    });
+
+    // Get user count
+    const usersSnapshot = await db.collection('users').get();
+    const activeUsers = usersSnapshot.size;
 
     const stats = {
       pendingApprovals: pendingApproval.length,
-      totalPipelineValue: '$0', // Would need calculation
-      approvedValue: '$0',
-      winRate: '0%',
-      activeUsers: 0,
-      totalProjects: 0
+      totalPipelineValue: calculateTotalPipeline(allProposals),
+      approvedValue: calculateApprovedValue(allProposals),
+      winRate: calculateWinRate(allProposals),
+      activeUsers: activeUsers,
+      totalProjects: allProposals.length
     };
 
     const actionItems = pendingApproval.slice(0, 3).map(p => ({
@@ -329,17 +266,21 @@ async function getDirectorDashboard(uid, db) {
     
   } catch (error) {
     console.error('Director dashboard error:', error);
-    return getMockDashboardData();
+    return getDefaultDashboard('director');
   }
 }
 
-// Get recent activities
-async function getRecentActivities(uid, db, limit) {
+// Helper functions
+async function getRecentActivities(uid, db, limit, roleFilter = null) {
   try {
     let query = db.collection('activities');
     
     if (uid) {
       query = query.where('performedBy', '==', uid);
+    }
+    
+    if (roleFilter) {
+      query = query.where('performedByRole', '==', roleFilter);
     }
     
     const snapshot = await query
@@ -348,13 +289,138 @@ async function getRecentActivities(uid, db, limit) {
       .get();
 
     const activities = [];
-    snapshot.forEach(doc => activities.push(doc.data()));
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      activities.push(data);
+    });
     
     return activities;
   } catch (error) {
     console.error('Recent activities error:', error);
     return [];
   }
+}
+
+function calculatePipelineValue(proposals) {
+  const total = proposals.reduce((sum, p) => {
+    if (p.pricing && p.pricing.quoteValue) {
+      const value = typeof p.pricing.quoteValue === 'string' 
+        ? parseFloat(p.pricing.quoteValue.replace(/[,$]/g, ''))
+        : p.pricing.quoteValue;
+      return sum + (isNaN(value) ? 0 : value);
+    }
+    return sum;
+  }, 0);
+  
+  return ' + total.toLocaleString();
+}
+
+function calculateWinRate(proposals) {
+  if (proposals.length === 0) return '0%';
+  
+  const wonProposals = proposals.filter(p => p.status === 'won' || p.status === 'approved').length;
+  const rate = Math.round((wonProposals / proposals.length) * 100);
+  return rate + '%';
+}
+
+function calculateTotalPipeline(proposals) {
+  const activeProposals = proposals.filter(p => 
+    ['pending_estimation', 'pending_pricing', 'pending_director_approval', 'approved'].includes(p.status)
+  );
+  return calculatePipelineValue(activeProposals);
+}
+
+function calculateApprovedValue(proposals) {
+  const approvedProposals = proposals.filter(p => p.status === 'approved' || p.status === 'won');
+  return calculatePipelineValue(approvedProposals);
+}
+
+function calculateQuarterRevenue(proposals) {
+  const now = new Date();
+  const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+  
+  const quarterRevenue = proposals.filter(p => {
+    if (!p.clientResponse || p.clientResponse.response !== 'accepted') return false;
+    const responseDate = new Date(p.clientResponse.receivedAt);
+    return responseDate >= quarterStart;
+  }).reduce((sum, p) => {
+    const value = p.clientResponse.contractValue || 0;
+    return sum + (typeof value === 'string' ? parseFloat(value.replace(/[,$]/g, '')) : value);
+  }, 0);
+
+  return ' + quarterRevenue.toLocaleString();
+}
+
+function calculateAverageMargin(proposals) {
+  const proposalsWithPricing = proposals.filter(p => p.pricing && p.pricing.profitMargin);
+  if (proposalsWithPricing.length === 0) return '0%';
+  
+  const totalMargin = proposalsWithPricing.reduce((sum, p) => {
+    const margin = parseFloat(p.pricing.profitMargin);
+    return sum + (isNaN(margin) ? 0 : margin);
+  }, 0);
+  
+  const avgMargin = Math.round(totalMargin / proposalsWithPricing.length);
+  return avgMargin + '%';
+}
+
+function getThisMonthCount(items) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  return items.filter(item => {
+    const itemDate = new Date(item.estimation?.estimatedAt || item.createdAt);
+    return itemDate >= monthStart;
+  }).length;
+}
+
+function getThisMonthPricingCount(proposals) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  return proposals.filter(p => {
+    if (!p.pricing || !p.pricing.pricedAt) return false;
+    const pricedDate = new Date(p.pricing.pricedAt);
+    return pricedDate >= monthStart;
+  }).length;
+}
+
+function getDefaultDashboard(role) {
+  const defaultStats = {
+    'bdm': {
+      totalProposals: 0,
+      activeProposals: 0,
+      approvedProposals: 0,
+      pipelineValue: '$0',
+      winRate: '0%'
+    },
+    'estimator': {
+      pendingEstimations: 0,
+      completedThisMonth: 0,
+      totalCompleted: 0,
+      avgTurnaroundTime: '0 days'
+    },
+    'coo': {
+      pendingPricing: 0,
+      revenueThisQuarter: '$0',
+      averageMargin: '0%',
+      pricingCompletedThisMonth: 0
+    },
+    'director': {
+      pendingApprovals: 0,
+      totalPipelineValue: '$0',
+      approvedValue: '$0',
+      winRate: '0%',
+      activeUsers: 0,
+      totalProjects: 0
+    }
+  };
+
+  return {
+    stats: defaultStats[role] || {},
+    actionItems: [],
+    recentActivities: []
+  };
 }
 
 module.exports = allowCors(handler);
