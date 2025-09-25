@@ -1,5 +1,5 @@
-// middleware/auth.js
-const { admin, db } = require('../firebase-config');
+// middleware/auth.js - REST-based authentication (no dependencies)
+const { verifyIdToken, helpers } = require('../firebase-rest-config');
 
 async function verifyToken(req, res, next) {
   try {
@@ -14,20 +14,25 @@ async function verifyToken(req, res, next) {
 
     const idToken = authHeader.split('Bearer ')[1];
     
-    // Verify the Firebase ID token
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    if (!idToken) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid token format'
+      });
+    }
+    
+    // Verify the Firebase ID token using REST API
+    const decodedToken = await verifyIdToken(idToken);
     
     // Get user data from Firestore
-    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const userData = await helpers.getUserById(decodedToken.uid);
     
-    if (!userDoc.exists) {
+    if (!userData) {
       return res.status(404).json({ 
         success: false,
         error: 'User not found in database'
       });
     }
-
-    const userData = userDoc.data();
     
     // Add user info to request
     req.user = {
@@ -42,16 +47,17 @@ async function verifyToken(req, res, next) {
   } catch (error) {
     console.error('Auth verification error:', error);
     
-    if (error.code === 'auth/id-token-expired') {
+    if (error.message.includes('Token verification failed')) {
       return res.status(401).json({ 
         success: false,
-        error: 'Token expired'
+        error: 'Token expired or invalid'
       });
     }
     
     return res.status(401).json({ 
       success: false,
-      error: 'Authentication failed'
+      error: 'Authentication failed',
+      details: error.message
     });
   }
 }
