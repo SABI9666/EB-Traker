@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -410,10 +410,25 @@
             font-size: 0.85rem;
             width: auto;
         }
+        
+        /* UPDATED LOADING SPINNER STYLES */
         .loading {
-            display: none;
-            text-align: center;
-            padding: 2rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(248, 250, 251, 0.85); /* Semi-transparent background */
+            z-index: 9999;
+            display: none; /* Initially hidden */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .loading p {
+            margin-top: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
         }
         .spinner {
             border: 4px solid var(--border);
@@ -422,7 +437,6 @@
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -685,6 +699,11 @@
         </div>
     </div>
     <div id="appContainer" class="app-container">
+        <!-- MOVED LOADING SPINNER HERE (OUTSIDE OF MAIN CONTENT) -->
+        <div class="loading" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
         <header class="header">
             <div class="header-content">
                 <div class="logo">
@@ -711,10 +730,7 @@
                 </ul>
             </nav>
             <main class="main-content" id="mainContent">
-                <div class="loading" id="loadingSpinner">
-                    <div class="spinner"></div>
-                    <p>Loading...</p>
-                </div>
+                <!-- SPINNER IS NO LONGER HERE -->
             </main>
         </div>
     </div>
@@ -795,9 +811,15 @@
             }
         }
 
-        // --- Utility Functions ---
-        function showLoading() { document.getElementById('loadingSpinner').style.display = 'block'; }
-        function hideLoading() { document.getElementById('loadingSpinner').style.display = 'none'; }
+        // --- Utility Functions (UPDATED) ---
+        function showLoading() { 
+            const spinner = document.getElementById('loadingSpinner');
+            if (spinner) spinner.style.display = 'flex'; // Use flex for centering
+        }
+        function hideLoading() { 
+            const spinner = document.getElementById('loadingSpinner');
+            if (spinner) spinner.style.display = 'none';
+        }
         
         function setActiveNav(navId) {
             document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
@@ -937,8 +959,8 @@
         async function showDashboard() {
             setActiveNav('nav-dashboard');
             const mainContent = document.getElementById('mainContent');
-            mainContent.innerHTML = ''; 
             showLoading();
+            mainContent.innerHTML = ''; 
             try {
                 const { success, data } = await apiCall('dashboard');
                 if (success && data) {
@@ -983,8 +1005,8 @@
         async function showProposals() {
             setActiveNav('nav-proposals');
             const mainContent = document.getElementById('mainContent');
-            mainContent.innerHTML = '';
             showLoading();
+            mainContent.innerHTML = '';
             try {
                 const { success, data } = await apiCall('proposals');
                 if (success && data) {
@@ -1277,8 +1299,8 @@
         async function showActivities() {
             setActiveNav('nav-activities');
             const mainContent = document.getElementById('mainContent');
-            mainContent.innerHTML = '';
             showLoading();
+            mainContent.innerHTML = '';
             try {
                 const { success, data } = await apiCall('activities');
                 if (success && data) {
