@@ -1,7 +1,6 @@
-// api/activities.js
 const admin = require('./_firebase-admin');
 const { verifyToken } = require('../middleware/auth');
-const util = 'util';
+const util = require('util');
 
 const db = admin.firestore();
 
@@ -19,9 +18,8 @@ const allowCors = fn => async (req, res) => {
 
 const handler = async (req, res) => {
     try {
-        await util.promisify(verifyToken)(req, res);
-
         if (req.method === 'GET') {
+            await util.promisify(verifyToken)(req, res); // Authenticate here
             const { limit = 20, proposalId } = req.query;
             let query = db.collection('activities').orderBy('timestamp', 'desc');
 
@@ -43,3 +41,4 @@ const handler = async (req, res) => {
 };
 
 module.exports = allowCors(handler);
+
