@@ -102,9 +102,9 @@
                     <h4>Access Levels & Test Accounts</h4>
                     <ul>
                         <li><strong>BDM:</strong> Open registration for any new email.</li>
-                        <li><strong>Estimator:</strong> Use email `estimator@edanbrook.com`</li>
-                        <li><strong>COO:</strong> Use email `coo@edanbrook.com`</li>
-                        <li><strong>Director:</strong> Use email `director@edanbrook.com`</li>
+                        <li><strong>Estimator:</strong> Use `estimator@edanbrook.com` or `estimator2@edanbrook.com`</li>
+                        <li><strong>COO:</strong> Use `coo@edanbrook.com` or `coo2@edanbrook.com`</li>
+                        <li><strong>Director:</strong> Use `director@edanbrook.com` or `admin@edanbrook.com`</li>
                     </ul>
                     <p style="font-size: 0.8rem; margin-top: 1rem;">(Any password will work for registration of the above accounts.)</p>
                 </div>
@@ -136,7 +136,7 @@
             <nav class="sidebar">
                 <ul class="nav-menu">
                     <li><a href="#" onclick="showDashboard()" class="active" id="nav-dashboard">Dashboard</a></li>
-                    <li id="newProposalNavItem"><a href="#" onclick="showCreateProposalModal()">New Proposal</a></li>
+                    <li id="newProposalNavItem" style="display: none;"><a href="#" onclick="showCreateProposalModal()">New Proposal</a></li>
                     <li><a href="#" onclick="showProposals()" id="nav-proposals">All Proposals</a></li>
                     <li><a href="#" onclick="showFileUpload()" id="nav-files">Files</a></li>
                     <li><a href="#" onclick="showActivities()" id="nav-activities">Activities</a></li>
@@ -158,7 +158,11 @@
         function getApiBase() { return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; }
         const API_BASE = getApiBase();
 
-        const authorizedUsers = { estimator: ["estimator@edanbrook.com"], coo: ["coo@edanbrook.com"], director: ["director@edanbrook.com", "admin@edanbrook.com"] };
+        const authorizedUsers = { 
+            estimator: ["estimator@edanbrook.com", "estimator2@edanbrook.com"], 
+            coo: ["coo@edanbrook.com", "coo2@edanbrook.com"], 
+            director: ["director@edanbrook.com", "admin@edanbrook.com"] 
+        };
         let currentUser = null; let currentUserRole = ''; let authToken = '';
 
         async function apiCall(endpoint, options = {}) {
@@ -257,7 +261,7 @@
             document.getElementById('appContainer').style.display = 'block';
             document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
-            // Role-based UI updates
+            // Role-based UI updates from demo
             document.getElementById('newProposalNavItem').style.display = (currentUserRole === 'bdm') ? 'block' : 'none';
             showDashboard();
         }
@@ -315,7 +319,13 @@
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const formData = { projectName: document.getElementById('projectName').value, clientCompany: document.getElementById('clientCompany').value, country: document.getElementById('country').value, timeline: document.getElementById('timeline').value, scopeOfWork: document.getElementById('scopeOfWork').value };
+                const formData = { 
+                    projectName: document.getElementById('projectName').value, 
+                    clientCompany: document.getElementById('clientCompany').value, 
+                    country: document.getElementById('country').value, 
+                    timeline: document.getElementById('timeline').value, 
+                    scopeOfWork: document.getElementById('scopeOfWork').value 
+                };
                 try {
                     const { success } = await apiCall('proposals', { method: 'POST', body: JSON.stringify(formData) });
                     if (success) { closeModal(); showProposals(); }
@@ -437,4 +447,3 @@
     </script>
 </body>
 </html>
-
