@@ -67,6 +67,7 @@ const handler = async (req, res) => {
                             mimeType: file.mimetype,
                             url: publicUrl,
                             proposalId: req.body.proposalId || null,
+                            fileType: req.body.fileType || 'project', // Added this line
                             uploadedByUid: req.user.uid,
                             uploadedByName: req.user.name,
                             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -109,4 +110,3 @@ const handler = async (req, res) => {
 };
 
 module.exports = allowCors(handler);
-
