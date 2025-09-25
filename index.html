@@ -5,629 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EBTracker - EDANBROOK Project Management</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        :root {
-            --primary-blue: #00BFFF;
-            --dark-blue: #0099CC;
-            --light-blue: #E6F7FF;
-            --text-dark: #2C3E50;
-            --text-light: #7F8C8D;
-            --background: #F8FAFB;
-            --success: #27AE60;
-            --danger: #E74C3C;
-            --warning: #F39C12;
-            --border: #E1E8ED;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--background);
-            color: var(--text-dark);
-            line-height: 1.6;
-        }
-        .login-page {
-            min-height: 100vh;
-            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            overflow: hidden;
-            display: flex;
-            min-width: 1000px;
-            min-height: 600px;
-        }
-        .login-left {
-            flex: 1;
-            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            padding: 3rem;
-            text-align: center;
-        }
-        .logo-circle {
-            width: 100px;
-            height: 100px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: var(--primary-blue);
-            font-size: 40px;
-            margin-bottom: 1rem;
-        }
-        .company-title {
-            font-size: 3rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        .company-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 2rem;
-        }
-        .login-right {
-            flex: 1.2;
-            padding: 3rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .auth-section {
-            margin-bottom: 2rem;
-        }
-        .auth-tabs {
-            display: flex;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid var(--border);
-        }
-        .auth-tab {
-            flex: 1;
-            padding: 1rem;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-light);
-            border-bottom: 2px solid transparent;
-            transition: all 0.3s ease;
-        }
-        .auth-tab.active {
-            color: var(--primary-blue);
-            border-bottom-color: var(--primary-blue);
-        }
-        .auth-content {
-            display: none;
-        }
-        .auth-content.active {
-            display: block;
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--text-dark);
-        }
-        .form-control {
-            width: 100%;
-            padding: 0.8rem;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary-blue);
-            box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1);
-        }
-        .btn {
-            padding: 0.8rem 2rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-        .btn-primary {
-            background: var(--primary-blue);
-            color: white;
-        }
-        .btn-primary:hover {
-            background: var(--dark-blue);
-            transform: translateY(-2px);
-        }
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-        .btn-outline {
-            background: transparent;
-            color: var(--primary-blue);
-            border: 2px solid var(--primary-blue);
-        }
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-        .btn-warning {
-            background: var(--warning);
-            color: white;
-        }
-        .role-selector {
-            margin-bottom: 1.5rem;
-        }
-        .role-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-        }
-        .role-btn {
-            padding: 1rem;
-            background: var(--light-blue);
-            border: 2px solid var(--primary-blue);
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.3s ease;
-            color: var(--primary-blue);
-            font-weight: 600;
-        }
-        .role-btn.active {
-            background: var(--primary-blue);
-            color: white;
-        }
-        .error-message, .success-message, .info-message {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .info-message {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        .info-box {
-            background: var(--light-blue);
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-top: 2rem;
-        }
-        .info-box h4 {
-            color: var(--primary-blue);
-            margin-bottom: 1rem;
-        }
-        .info-box ul {
-            list-style-position: inside;
-            color: var(--text-dark);
-        }
-        .app-container {
-            display: none;
-            min-height: 100vh;
-            background: var(--background);
-        }
-        .header {
-            background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
-            color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .logo .logo-circle {
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
-        }
-        .company-info h1 {
-            font-size: 1.8rem;
-            font-weight: 600;
-        }
-        .company-info p {
-            opacity: 0.9;
-            font-size: 0.9rem;
-        }
-        .user-info {
-            text-align: right;
-        }
-        .btn-logout {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-left: 1rem;
-        }
-        .main-layout {
-            display: flex;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .sidebar {
-            width: 280px;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            padding: 2rem 0;
-            min-height: calc(100vh - 120px);
-        }
-        .nav-menu {
-            list-style: none;
-        }
-        .nav-menu a {
-            display: block;
-            padding: 1rem 2rem;
-            color: var(--text-dark);
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        .nav-menu a:hover, .nav-menu a.active {
-            background: var(--light-blue);
-            color: var(--primary-blue);
-            border-right: 4px solid var(--primary-blue);
-        }
-        .nav-menu .nav-submenu {
-            padding-left: 2rem;
-            background: var(--light-blue);
-            display: none;
-        }
-        .nav-menu .nav-submenu.active {
-            display: block;
-        }
-        .nav-menu .nav-submenu a {
-            padding: 0.8rem 2rem;
-            font-size: 0.9rem;
-        }
-        .main-content {
-            flex: 1;
-            padding: 2rem;
-            background: var(--background);
-            overflow-y: auto;
-            max-height: calc(100vh - 120px);
-        }
-        .dashboard-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .stat-card {
-            background: white;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            text-align: center;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .stat-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
-        }
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary-blue), var(--dark-blue));
-        }
-        .stat-number {
-            font-size: 3rem;
-            font-weight: bold;
-            color: var(--primary-blue);
-            margin-bottom: 0.5rem;
-        }
-        .stat-label {
-            color: var(--text-light);
-            font-size: 1rem;
-            font-weight: 500;
-        }
-        .action-items {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-        .action-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1.5rem;
-            background: var(--background);
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            border-left: 4px solid var(--primary-blue);
-            transition: all 0.3s ease;
-        }
-        .action-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .action-content {
-            flex: 1;
-        }
-        .action-content strong {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 1.1rem;
-            color: var(--text-dark);
-        }
-        .action-meta {
-            font-size: 0.9rem;
-            color: var(--text-light);
-            line-height: 1.4;
-        }
-        .action-buttons {
-            display: flex;
-            gap: 0.8rem;
-        }
-        .btn-sm {
-            padding: 0.6rem 1.2rem;
-            font-size: 0.85rem;
-            width: auto;
-        }
-        .loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(248, 250, 251, 0.85);
-            z-index: 9999;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
-        .loading p {
-            margin-top: 1rem;
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-        .spinner {
-            border: 4px solid var(--border);
-            border-top: 4px solid var(--primary-blue);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .debug-info {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-        .upload-area {
-            border: 2px dashed var(--primary-blue);
-            border-radius: 10px;
-            padding: 3rem 2rem;
-            text-align: center;
-            margin: 1rem 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        .upload-area:hover, .upload-area.dragover {
-            background: var(--light-blue);
-            border-color: var(--dark-blue);
-        }
-        .upload-area input[type="file"] {
-            display: none;
-        }
-        .upload-icon {
-            font-size: 3rem;
-            color: var(--primary-blue);
-            margin-bottom: 1rem;
-        }
-        .file-list {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            background: var(--background);
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            transition: all 0.3s ease;
-        }
-        .file-item:hover {
-            background: var(--light-blue);
-        }
-        .file-info {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .file-icon {
-            font-size: 1.5rem;
-            color: var(--primary-blue);
-        }
-        .file-details h4 {
-            color: var(--text-dark);
-            margin-bottom: 0.2rem;
-        }
-        .file-meta {
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-        .file-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .btn-icon {
-            padding: 0.5rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-        .btn-view {
-            background: var(--primary-blue);
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-        }
-        .btn-delete {
-            background: var(--danger);
-            color: white;
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 800px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            padding: 2rem;
-        }
-        .proposals-grid {
-            display: grid;
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-        .proposal-card {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-        }
-        .proposal-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-        .proposal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-        .proposal-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 0.5rem;
-        }
-        .proposal-client {
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-        .proposal-status {
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary-blue: #00BFFF; --dark-blue: #0099CC; --light-blue: #E6F7FF; --text-dark: #2C3E50; --text-light: #7F8C8D; --background: #F8FAFB; --success: #27AE60; --danger: #E74C3C; --warning: #F39C12; --border: #E1E8ED; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--background); color: var(--text-dark); line-height: 1.6; }
+        .login-page { min-height: 100vh; background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue)); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+        .login-container { background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); overflow: hidden; display: flex; min-width: 1000px; min-height: 600px; }
+        .login-left { flex: 1; background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue)); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; padding: 3rem; text-align: center; }
+        .logo-circle { width: 100px; height: 100px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary-blue); font-size: 40px; margin-bottom: 1rem; }
+        .company-title { font-size: 3rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .company-subtitle { font-size: 1.2rem; opacity: 0.9; margin-bottom: 2rem; }
+        .login-right { flex: 1.2; padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+        .auth-tabs { display: flex; margin-bottom: 2rem; border-bottom: 2px solid var(--border); }
+        .auth-tab { flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-size: 1.1rem; font-weight: 600; color: var(--text-light); border-bottom: 2px solid transparent; transition: all 0.3s ease; }
+        .auth-tab.active { color: var(--primary-blue); border-bottom-color: var(--primary-blue); }
+        .auth-content { display: none; }
+        .auth-content.active { display: block; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-dark); }
+        .form-control { width: 100%; padding: 0.8rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; transition: all 0.3s ease; }
+        .form-control:focus { outline: none; border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1); }
+        .btn { padding: 0.8rem 2rem; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.3s ease; width: 100%; }
+        .btn-primary { background: var(--primary-blue); color: white; }
+        .btn-primary:hover { background: var(--dark-blue); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; color: var(--primary-blue); border: 2px solid var(--primary-blue); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .role-selector { margin-bottom: 1.5rem; }
+        .role-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+        .role-btn { padding: 1rem; background: var(--light-blue); border: 2px solid var(--primary-blue); border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s ease; color: var(--primary-blue); font-weight: 600; }
+        .role-btn.active { background: var(--primary-blue); color: white; }
+        .info-box { background: var(--light-blue); padding: 1.5rem; border-radius: 8px; margin-top: 2rem; text-align: left; color: var(--text-dark); }
+        .info-box h4 { color: var(--primary-blue); margin-bottom: 1rem; }
+        .info-box ul { list-style-position: inside; padding-left: 0.5rem; }
+        .info-box li { margin-bottom: 0.5rem; }
+        .error-message, .success-message, .info-message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 600; }
+        .error-message { background: #f8d7da; color: #721c24; }
+        .success-message { background: #d4edda; color: #155724; }
+        .info-message { background: #d1ecf1; color: #0c5460; }
+        .app-container { display: none; min-height: 100vh; background: var(--background); }
+        .header { background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue)); color: white; padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header-content { display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; }
+        .logo { display: flex; align-items: center; gap: 1rem; }
+        .logo .logo-circle { width: 50px; height: 50px; font-size: 20px; }
+        .company-info h1 { font-size: 1.8rem; font-weight: 600; }
+        .user-info { text-align: right; }
+        .btn-logout { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; margin-left: 1rem; }
+        .main-layout { display: flex; max-width: 1400px; margin: 0 auto; }
+        .sidebar { width: 280px; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); padding: 2rem 0; min-height: calc(100vh - 80px); }
+        .nav-menu { list-style: none; }
+        .nav-menu a { display: block; padding: 1rem 2rem; color: var(--text-dark); text-decoration: none; transition: all 0.3s ease; }
+        .nav-menu a:hover, .nav-menu a.active { background: var(--light-blue); color: var(--primary-blue); border-right: 4px solid var(--primary-blue); }
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; max-height: calc(100vh - 80px); }
+        .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; }
+        .stat-number { font-size: 3rem; font-weight: bold; color: var(--primary-blue); margin-bottom: 0.5rem; }
+        .stat-label { color: var(--text-light); font-size: 1rem; font-weight: 500; }
+        .action-items { background: white; border-radius: 15px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .action-item { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: var(--background); border-radius: 12px; margin-bottom: 1rem; border-left: 4px solid var(--primary-blue); }
+        .action-content strong { display: block; margin-bottom: 0.5rem; font-size: 1.1rem; }
+        .action-meta { font-size: 0.9rem; color: var(--text-light); }
+        .btn-sm { padding: 0.6rem 1.2rem; font-size: 0.85rem; width: auto; }
+        .loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(248, 250, 251, 0.85); z-index: 9999; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        .loading p { margin-top: 1rem; font-weight: 600; }
+        .spinner { border: 4px solid var(--border); border-top: 4px solid var(--primary-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+        .modal-content { background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 2rem; }
+        .proposals-grid { display: grid; gap: 1.5rem; margin-top: 2rem; }
+        .proposal-card { background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .proposal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .proposal-title { font-size: 1.2rem; font-weight: 600; }
+        .proposal-client { color: var(--text-light); font-size: 0.9rem; }
+        .proposal-status { padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
         .status-pending-estimation { background: #d1ecf1; color: #0c5460; }
         .status-pending-pricing { background: #fff3cd; color: #856404; }
         .status-pending-director-approval { background: #f0d0ff; color: #6f42c1; }
         .status-approved { background: #d4edda; color: #155724; }
         .status-rejected { background: #f8d7da; color: #721c24; }
         .status-submitted-to-client { background: #cce5ff; color: #0066cc; }
-        .status-deleted { background: #e9ecef; color: #495057; }
-        @media (max-width: 768px) {
-            .login-container {
-                flex-direction: column;
-                min-width: auto;
-                margin: 1rem;
-            }
-            .main-layout {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100%;
-                min-height: auto;
-            }
-            .dashboard-stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .role-buttons {
-                grid-template-columns: 1fr;
-            }
-            .action-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-            }
-            .action-buttons {
-                width: 100%;
-                justify-content: flex-end;
-            }
-        }
+        .upload-area { border: 2px dashed var(--primary-blue); border-radius: 10px; padding: 2rem; text-align: center; margin-bottom: 1rem; cursor: pointer; transition: background 0.3s ease; }
+        .upload-area:hover { background: var(--light-blue); }
+        .upload-area input { display: none; }
+        .file-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--border); }
+        .file-info { display: flex; align-items: center; gap: 1rem; }
     </style>
 </head>
 <body>
@@ -638,13 +99,14 @@
                 <h1 class="company-title">EDANBROOK</h1>
                 <p class="company-subtitle">Project Management System</p>
                 <div class="info-box">
-                    <h4>Access Levels:</h4>
+                    <h4>Access Levels & Test Accounts</h4>
                     <ul>
-                        <li><strong>BDM:</strong> Open registration</li>
-                        <li><strong>Estimator:</strong> Authorized users only</li>
-                        <li><strong>COO:</strong> Authorized users only</li>
-                        <li><strong>Director:</strong> Authorized users only</li>
+                        <li><strong>BDM:</strong> Open registration for any new email.</li>
+                        <li><strong>Estimator:</strong> Use email `estimator@edanbrook.com`</li>
+                        <li><strong>COO:</strong> Use email `coo@edanbrook.com`</li>
+                        <li><strong>Director:</strong> Use email `director@edanbrook.com`</li>
                     </ul>
+                    <p style="font-size: 0.8rem; margin-top: 1rem;">(Any password will work for registration of the above accounts.)</p>
                 </div>
             </div>
             <div class="login-right">
@@ -654,80 +116,33 @@
                 </div>
                 <div id="authMessages"></div>
                 <div id="loginContent" class="auth-content active">
-                    <form id="loginForm">
-                        <div class="form-group">
-                            <label for="loginEmail">Email Address</label>
-                            <input type="email" id="loginEmail" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="loginPassword">Password</label>
-                            <input type="password" id="loginPassword" class="form-control" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </form>
+                    <form id="loginForm"><div class="form-group"><label for="loginEmail">Email</label><input type="email" id="loginEmail" class="form-control" required></div><div class="form-group"><label for="loginPassword">Password</label><input type="password" id="loginPassword" class="form-control" required></div><button type="submit" class="btn btn-primary">Login</button></form>
                 </div>
                 <div id="registerContent" class="auth-content">
-                    <form id="registerForm">
-                        <div class="role-selector">
-                            <label>Select Role:</label>
-                            <div class="role-buttons">
-                                <div class="role-btn active" data-role="bdm">BDM</div>
-                                <div class="role-btn" data-role="estimator">Estimator</div>
-                                <div class="role-btn" data-role="coo">COO</div>
-                                <div class="role-btn" data-role="director">Director</div>
-                            </div>
-                            <input type="hidden" id="selectedRole" value="bdm">
-                        </div>
-                        <div class="form-group">
-                            <label for="registerName">Full Name</label>
-                            <input type="text" id="registerName" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="registerEmail">Email Address</label>
-                            <input type="email" id="registerEmail" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="registerPassword">Password</label>
-                            <input type="password" id="registerPassword" class="form-control" required minlength="6">
-                        </div>
-                        <button type="submit" class="btn btn-success">Register</button>
-                    </form>
+                    <form id="registerForm"><div class="role-selector"><label>Select Role:</label><div class="role-buttons"><div class="role-btn active" data-role="bdm">BDM</div><div class="role-btn" data-role="estimator">Estimator</div><div class="role-btn" data-role="coo">COO</div><div class="role-btn" data-role="director">Director</div></div><input type="hidden" id="selectedRole" value="bdm"></div><div class="form-group"><label for="registerName">Full Name</label><input type="text" id="registerName" class="form-control" required></div><div class="form-group"><label for="registerEmail">Email</label><input type="email" id="registerEmail" class="form-control" required></div><div class="form-group"><label for="registerPassword">Password</label><input type="password" id="registerPassword" class="form-control" required minlength="6"></div><button type="submit" class="btn btn-success">Register</button></form>
                 </div>
             </div>
         </div>
     </div>
     <div id="appContainer" class="app-container">
-        <div class="loading" id="loadingSpinner">
-            <div class="spinner"></div>
-            <p>Loading...</p>
-        </div>
+        <div class="loading" id="loadingSpinner"><div class="spinner"></div><p>Loading...</p></div>
         <header class="header">
             <div class="header-content">
-                <div class="logo">
-                    <div class="logo-circle">EB</div>
-                    <div class="company-info">
-                        <h1>EDANBROOK EBTracker</h1>
-                        <p>Project Management System</p>
-                    </div>
-                </div>
-                <div class="user-info">
-                    <div id="userWelcome">Welcome back</div>
-                    <div id="userRole" style="font-size: 0.9rem; opacity: 0.8;"></div>
-                    <button onclick="logout()" class="btn-logout">Logout</button>
-                </div>
+                <div class="logo"><div class="logo-circle">EB</div><div class="company-info"><h1>EBTracker</h1></div></div>
+                <div class="user-info"><div id="userWelcome"></div><div id="userRole"></div><button onclick="logout()" class="btn-logout">Logout</button></div>
             </div>
         </header>
         <div class="main-layout">
             <nav class="sidebar">
                 <ul class="nav-menu">
                     <li><a href="#" onclick="showDashboard()" class="active" id="nav-dashboard">Dashboard</a></li>
-                    <li><a href="#" onclick="showProposals()" id="nav-proposals">Proposals</a></li>
+                    <li id="newProposalNavItem"><a href="#" onclick="showCreateProposalModal()">New Proposal</a></li>
+                    <li><a href="#" onclick="showProposals()" id="nav-proposals">All Proposals</a></li>
                     <li><a href="#" onclick="showFileUpload()" id="nav-files">Files</a></li>
                     <li><a href="#" onclick="showActivities()" id="nav-activities">Activities</a></li>
                 </ul>
             </nav>
-            <main class="main-content" id="mainContent">
-            </main>
+            <main class="main-content" id="mainContent"></main>
         </div>
     </div>
     
@@ -735,101 +150,41 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU",
-            authDomain: "eb-tracker-42881.firebaseapp.com",
-            projectId: "eb-tracker-42881",
-            storageBucket: "eb-tracker-42881.appspot.com",
-            messagingSenderId: "922340749018",
-            appId: "1:922340749018:web:68296d8775a79e71b2bfe3",
-            measurementId: "G-Q0HVWG99L7"
-        };
-        
+        const firebaseConfig = { apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU", authDomain: "eb-tracker-42881.firebaseapp.com", projectId: "eb-tracker-42881", storageBucket: "eb-tracker-42881.appspot.com", messagingSenderId: "922340749018", appId: "1:922340749018:web:68296d8775a79e71b2bfe3" };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        function getApiBase() {
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                return 'http://localhost:3000';
-            }
-            // CORRECTED URL to use 'eb-traker'
-            return 'https://eb-traker.vercel.app'; 
-        }
+        function getApiBase() { return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; }
         const API_BASE = getApiBase();
-        console.log('API Base URL:', API_BASE);
 
-        const authorizedUsers = {
-            estimator: ["estimator@edanbrook.com"],
-            coo: ["coo@edanbrook.com"],
-            director: ["director@edanbrook.com", "admin@edanbrook.com"]
-        };
-
-        let currentUser = null;
-        let currentUserRole = '';
-        let authToken = '';
+        const authorizedUsers = { estimator: ["estimator@edanbrook.com"], coo: ["coo@edanbrook.com"], director: ["director@edanbrook.com", "admin@edanbrook.com"] };
+        let currentUser = null; let currentUserRole = ''; let authToken = '';
 
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
-            const defaultOptions = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                }
-            };
-            if (options.body instanceof FormData) {
-                delete defaultOptions.headers['Content-Type'];
-            }
+            const defaultOptions = { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` } };
+            if (options.body instanceof FormData) { delete defaultOptions.headers['Content-Type']; }
             const finalOptions = { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } };
             try {
                 const response = await fetch(url, finalOptions);
                 const responseText = await response.text();
                 if (!response.ok) {
                     let errorData;
-                    try { errorData = JSON.parse(responseText); } catch (e) {
-                        throw new Error(`API Error ${response.status}: ${responseText.substring(0, 200)}...`);
-                    }
-                    throw new Error(errorData.message || errorData.error || `Request failed with status ${response.status}`);
+                    try { errorData = JSON.parse(responseText); } catch (e) { throw new Error(`API Error ${response.status}: ${responseText.substring(0, 200)}...`); }
+                    throw new Error(errorData.message || errorData.error || `Request failed`);
                 }
                 return responseText ? JSON.parse(responseText) : {};
-            } catch (error) {
-                console.error(`API call to ${endpoint} failed:`, error);
-                throw error;
-            }
+            } catch (error) { console.error(`API call to ${endpoint} failed:`, error); throw error; }
         }
 
-        function showLoading() { 
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) spinner.style.display = 'flex';
-        }
-        function hideLoading() { 
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) spinner.style.display = 'none';
-        }
-        
-        function setActiveNav(navId) {
-            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
-            document.getElementById(navId)?.classList.add('active');
-        }
-        
-        function showMessage(message, type = 'info') {
-            const container = document.getElementById('authMessages');
-            if(container) container.innerHTML = `<div class="${type}-message">${message}</div>`;
-        }
-        
-        function clearMessages() {
-            const container = document.getElementById('authMessages');
-            if(container) container.innerHTML = '';
-        }
-        
-        function closeModal() {
-            document.querySelector('.modal-overlay')?.remove();
-        }
-
-        function formatDate(timestamp) {
-            if (!timestamp || !timestamp.seconds) return 'N/A';
-            return new Date(timestamp.seconds * 1000).toLocaleString();
-        }
+        function showLoading() { document.getElementById('loadingSpinner').style.display = 'flex'; }
+        function hideLoading() { document.getElementById('loadingSpinner').style.display = 'none'; }
+        function setActiveNav(navId) { document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active')); document.getElementById(navId)?.classList.add('active'); }
+        function showMessage(message, type = 'info') { const c = document.getElementById('authMessages'); if(c) c.innerHTML = `<div class="${type}-message">${message}</div>`; }
+        function clearMessages() { const c = document.getElementById('authMessages'); if(c) c.innerHTML = ''; }
+        function closeModal() { document.querySelector('.modal-overlay')?.remove(); }
+        function formatDate(ts) { return (ts && ts.seconds) ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A'; }
 
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
@@ -846,15 +201,9 @@
                             await auth.signOut();
                             showMessage('Your user account was not found in the database. Please contact an administrator.', 'error');
                         }
-                    } catch (error) {
-                        console.error('Error on auth state change:', error);
-                        showMessage('Failed to initialize your session. Please try logging in again.', 'error');
-                    }
+                    } catch (error) { console.error('Auth state change error:', error); showMessage('Failed to initialize session.', 'error'); }
                 } else {
-                    currentUser = null;
-                    currentUserRole = '';
-                    authToken = '';
-                    showLogin();
+                    currentUser = null; currentUserRole = ''; authToken = ''; showLogin();
                 }
             });
         });
@@ -881,360 +230,174 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
             try {
-                clearMessages();
-                showMessage('Logging in...', 'info');
-                await auth.signInWithEmailAndPassword(email, password);
-            } catch (error) {
-                showMessage(error.code === 'auth/invalid-credential' ? 'Invalid email or password.' : 'Login failed. Please try again.', 'error');
-            }
+                clearMessages(); showMessage('Logging in...', 'info');
+                await auth.signInWithEmailAndPassword(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
+            } catch (error) { showMessage(error.code.includes('credential') ? 'Invalid email or password.' : 'Login failed.', 'error'); }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
-            const name = document.getElementById('registerName').value;
-            const email = document.getElementById('registerEmail').value.toLowerCase();
-            const password = document.getElementById('registerPassword').value;
-            const role = document.getElementById('selectedRole').value;
+            const name = document.getElementById('registerName').value, email = document.getElementById('registerEmail').value.toLowerCase(), password = document.getElementById('registerPassword').value, role = document.getElementById('selectedRole').value;
             try {
                 clearMessages();
-                if (role !== 'bdm' && !isAuthorizedEmail(email, role)) {
-                    showMessage(`Access Denied: Your email is not authorized for the ${role.toUpperCase()} role.`, 'error');
-                    return;
-                }
+                if (role !== 'bdm' && !authorizedUsers[role]?.includes(email)) { return showMessage(`Your email is not authorized for the ${role.toUpperCase()} role.`, 'error'); }
                 showMessage('Creating account...', 'info');
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                await userCredential.user.updateProfile({ displayName: name });
-                await db.collection('users').doc(userCredential.user.uid).set({
-                    name, email, role, status: 'active',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                showMessage('Account created! Please log in.', 'success');
-                showTab('login');
-            } catch (error) {
-                showMessage(error.code === 'auth/email-already-in-use' ? 'An account with this email already exists.' : 'Registration failed. Please try again.', 'error');
-            }
-        }
-        
-        function isAuthorizedEmail(email, role) {
-            return authorizedUsers[role]?.includes(email.toLowerCase().trim());
+                const cred = await auth.createUserWithEmailAndPassword(email, password);
+                await cred.user.updateProfile({ displayName: name });
+                await db.collection('users').doc(cred.user.uid).set({ name, email, role, status: 'active', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                showMessage('Account created! Please log in.', 'success'); showTab('login');
+            } catch (error) { showMessage(error.code.includes('in-use') ? 'An account with this email already exists.' : 'Registration failed.', 'error'); }
         }
 
-        async function logout() {
-            await auth.signOut();
-        }
+        async function logout() { await auth.signOut(); }
         
         function showApp() {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('appContainer').style.display = 'block';
             document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `Role: ${currentUserRole.toUpperCase()}`;
+            // Role-based UI updates
+            document.getElementById('newProposalNavItem').style.display = (currentUserRole === 'bdm') ? 'block' : 'none';
             showDashboard();
         }
 
-        function showLogin() {
-            document.getElementById('appContainer').style.display = 'none';
-            document.getElementById('loginPage').style.display = 'flex';
-            clearMessages();
-        }
+        function showLogin() { document.getElementById('appContainer').style.display = 'none'; document.getElementById('loginPage').style.display = 'flex'; clearMessages(); }
 
         async function showDashboard() {
             setActiveNav('nav-dashboard');
-            const mainContent = document.getElementById('mainContent');
-            showLoading();
-            mainContent.innerHTML = ''; 
+            const main = document.getElementById('mainContent');
+            showLoading(); main.innerHTML = '';
             try {
                 const { success, data } = await apiCall('dashboard');
-                if (success && data) {
-                    renderDashboard(data);
-                } else { throw new Error('Invalid dashboard response format'); }
-            } catch (error) {
-                mainContent.innerHTML = `<div class="error-message"><h3>Error Loading Dashboard</h3><p>${error.message}</p></div>`;
-            } finally {
-                hideLoading();
-            }
+                if (success && data) renderDashboard(data);
+                else throw new Error('Invalid dashboard response');
+            } catch (error) { main.innerHTML = `<div class="error-message"><h3>Error Loading Dashboard</h3><p>${error.message}</p></div>`; } 
+            finally { hideLoading(); }
         }
 
         function renderDashboard(data) {
-            const statsHtml = data.stats ? Object.entries(data.stats).map(([key, value]) => `
-                <div class="stat-card">
-                    <div class="stat-number">${value}</div>
-                    <div class="stat-label">${formatStatLabel(key)}</div>
-                </div>`).join('') : '';
-
-            const actionItemsHtml = data.actionItems?.length > 0 ? `
-                <h3>Your Action Items</h3>
-                ${data.actionItems.map(item => `
-                    <div class="action-item">
-                        <div class="action-content">
-                            <strong>${item.projectName || formatActionTitle(item.type)}</strong>
-                            <div class="action-meta">${item.clientCompany ? `Client: ${item.clientCompany}` : ''}</div>
-                        </div>
-                        <div class="action-buttons">
-                            <button class="btn btn-primary btn-sm" onclick="viewProposal('${item.proposalId}')">${getActionButtonText(item.type)}</button>
-                        </div>
-                    </div>`).join('')}` : `<h3>Action Items</h3><p>No pending action items. All caught up! 🎉</p>`;
-
-            document.getElementById('mainContent').innerHTML = `
-                <h2>Dashboard - ${currentUserRole.toUpperCase()}</h2>
-                <div class="dashboard-stats">${statsHtml}</div>
-                <div class="action-items">${actionItemsHtml}</div>
-                ${renderRecentActivities(data.recentActivities)}
-            `;
+            const getActionBtnText = (status) => ({'pending_estimation': 'Add Estimation', 'pending_pricing': 'Set Pricing', 'pending_director_approval': 'Review & Approve', 'approved': 'Submit to Client'})[status] || 'View';
+            const statsHtml = data.stats ? Object.entries(data.stats).map(([k, v]) => `<div class="stat-card"><div class="stat-number">${v}</div><div class="stat-label">${k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div></div>`).join('') : '';
+            const actionsHtml = data.actionItems?.length ? `<h3>Your Action Items</h3>` + data.actionItems.map(item => `<div class="action-item"><div class="action-content"><strong>${item.projectName}</strong><div class="action-meta">Client: ${item.clientCompany}</div></div><button class="btn btn-primary btn-sm" onclick="viewProposal('${item.proposalId}')">${getActionBtnText(item.status)}</button></div>`).join('') : `<h3>Action Items</h3><p>No pending action items. All caught up! 🎉</p>`;
+            const activitiesHtml = data.recentActivities?.length ? `<h3>Recent Activities</h3>` + data.recentActivities.map(act => `<div class="action-item"><strong>${act.details}</strong><div class="action-meta">${formatDate(act.timestamp)}</div></div>`).join('') : '';
+            document.getElementById('mainContent').innerHTML = `<h2>Dashboard</h2><div class="dashboard-stats">${statsHtml}</div><div class="action-items">${actionsHtml}</div><div class="action-items">${activitiesHtml}</div>`;
         }
 
         async function showProposals() {
             setActiveNav('nav-proposals');
-            const mainContent = document.getElementById('mainContent');
-            showLoading();
-            mainContent.innerHTML = '';
+            const main = document.getElementById('mainContent');
+            showLoading(); main.innerHTML = '';
             try {
                 const { success, data } = await apiCall('proposals');
-                if (success && data) {
-                    renderProposals(data);
-                } else { throw new Error('Invalid proposals response format'); }
-            } catch (error) {
-                mainContent.innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
-            } finally {
-                hideLoading();
-            }
+                if (success && data) renderProposals(data);
+                else throw new Error('Invalid proposals response');
+            } catch (error) { main.innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`; } 
+            finally { hideLoading(); }
         }
 
         function renderProposals(proposals) {
             const createButton = currentUserRole === 'bdm' ? `<button onclick="showCreateProposalModal()" class="btn btn-primary" style="margin-bottom: 2rem;">Create New Proposal</button>` : '';
-            const proposalsHtml = proposals?.length > 0 ? proposals.map(p => `
-                <div class="proposal-card">
-                    <div class="proposal-header">
-                        <div>
-                            <div class="proposal-title">${p.projectName}</div>
-                            <div class="proposal-client">${p.clientCompany}</div>
-                        </div>
-                        <div class="proposal-status status-${p.status.replace(/_/g, '-')}">${p.status.replace(/_/g, ' ')}</div>
-                    </div>
-                    <div class="action-meta">
-                        Type: ${p.projectType} | Created: ${formatDate(p.createdAt)}
-                    </div>
-                    <div style="margin-top: 1rem;">
-                        <button onclick="viewProposal('${p.id}')" class="btn btn-outline btn-sm">View Details</button>
-                    </div>
-                </div>`).join('') : '<p>No proposals found.</p>';
-            
-            document.getElementById('mainContent').innerHTML = `
-                <h2>Proposals Management</h2>
-                ${createButton}
-                <div class="proposals-grid">${proposalsHtml}</div>`;
+            const proposalsHtml = proposals?.length ? proposals.map(p => `<div class="proposal-card"><div class="proposal-header"><div><div class="proposal-title">${p.projectName}</div><div class="proposal-client">${p.clientCompany}</div></div><div class="proposal-status status-${p.status.replace(/_/g, '-')}">${p.status.replace(/_/g, ' ')}</div></div><div class="action-meta">Created: ${formatDate(p.createdAt)}</div><div style="margin-top: 1rem;"><button onclick="viewProposal('${p.id}')" class="btn btn-outline btn-sm">View Details</button></div></div>`).join('') : '<p>No proposals found.</p>';
+            document.getElementById('mainContent').innerHTML = `<h2>All Proposals</h2> ${createButton} <div class="proposals-grid">${proposalsHtml}</div>`;
         }
 
         async function viewProposal(proposalId) {
             try {
                 const { success, data } = await apiCall(`proposals?id=${proposalId}`);
-                if (success && data) {
-                    renderProposalDetailModal(data);
-                } else { throw new Error('Invalid proposal response format'); }
+                if (success && data) renderProposalDetailModal(data);
+                else throw new Error('Invalid proposal response');
             } catch (error) { alert(`Error fetching proposal: ${error.message}`); }
         }
         
         function showCreateProposalModal() {
-            const modalHtml = `
-                <div class="modal-overlay" onclick="if (event.target === this) closeModal()">
-                    <div class="modal-content">
-                        <h2 style="color: var(--primary-blue); margin-bottom: 2rem;">Create New Proposal</h2>
-                        <form id="createProposalForm" style="display: grid; gap: 1rem;">
-                            <div class="form-group"><label>Project Name</label><input type="text" id="projectName" class="form-control" required></div>
-                            <div class="form-group"><label>Client Company</label><input type="text" id="clientCompany" class="form-control" required></div>
-                            <div class="form-group"><label>Project Type</label>
-                                <select id="projectType" class="form-control" required><option value="Commercial">Commercial</option><option value="Industrial">Industrial</option></select>
-                            </div>
-                            <div class="form-group"><label>Scope of Work</label><textarea id="scopeOfWork" class="form-control" rows="3" required></textarea></div>
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Create</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>`;
+            const modalHtml = `<div class="modal-overlay"><div class="modal-content"><h2 style="margin-bottom: 2rem;">Create New Proposal</h2><form id="createProposalForm" style="display: grid; gap: 1.5rem;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;"><div class="form-group"><label>Project Name</label><input type="text" id="projectName" class="form-control" required></div><div class="form-group"><label>Client Company</label><input type="text" id="clientCompany" class="form-control" required></div><div class="form-group"><label>Country</label><select id="country" class="form-control" required><option value="Australia">Australia</option><option value="USA">USA</option><option value="Canada">Canada</option></select></div><div class="form-group"><label>Expected Timeline</label><select id="timeline" class="form-control"><option value="1-3 Months">1-3 Months</option><option value="3-6 Months">3-6 Months</option><option value="6+ Months">6+ Months</option></select></div></div><div class="form-group"><label>Scope of Work</label><textarea id="scopeOfWork" class="form-control" rows="4" required></textarea></div><div style="display: flex; gap: 1rem; justify-content: flex-end;"><button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button><button type="submit" class="btn btn-primary">Submit for Estimation</button></div></form></div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const formData = {
-                    projectName: document.getElementById('projectName').value,
-                    clientCompany: document.getElementById('clientCompany').value,
-                    projectType: document.getElementById('projectType').value,
-                    scopeOfWork: document.getElementById('scopeOfWork').value,
-                };
+                const formData = { projectName: document.getElementById('projectName').value, clientCompany: document.getElementById('clientCompany').value, country: document.getElementById('country').value, timeline: document.getElementById('timeline').value, scopeOfWork: document.getElementById('scopeOfWork').value };
                 try {
                     const { success } = await apiCall('proposals', { method: 'POST', body: JSON.stringify(formData) });
-                    if (success) {
-                        closeModal();
-                        showProposals();
-                    }
+                    if (success) { closeModal(); showProposals(); }
                 } catch (error) { alert(`Creation failed: ${error.message}`); }
             });
         }
         
-        function renderProposalDetailModal(proposal) {
-            const renderObject = (obj) => obj ? `<pre style="white-space: pre-wrap; word-break: break-all; background: #f4f4f4; padding: 10px; border-radius: 5px;">${JSON.stringify(obj, null, 2)}</pre>` : 'Not available';
+        function renderProposalDetailModal(p) {
+            const renderObj = (obj) => obj ? `<pre style="white-space: pre-wrap; word-break: break-all; background: #f4f4f4; padding: 10px; border-radius: 5px;">${JSON.stringify(obj, null, 2)}</pre>` : 'Not available';
             let actionsHtml = '';
-            if (currentUserRole === 'estimator' && proposal.status === 'pending_estimation') {
-                actionsHtml = `<button class="btn btn-primary" onclick="showEstimationModal('${proposal.id}')">Add Estimation</button>`;
-            } else if (currentUserRole === 'coo' && proposal.status === 'pending_pricing') {
-                 actionsHtml = `<button class="btn btn-primary" onclick="showPricingModal('${proposal.id}')">Set Pricing</button>`;
-            } else if (currentUserRole === 'director' && proposal.status === 'pending_director_approval') {
-                actionsHtml = `<button class="btn btn-danger" onclick="rejectProposal('${proposal.id}')">Reject</button>
-                               <button class="btn btn-success" onclick="approveProposal('${proposal.id}')">Approve</button>`;
-            } else if (currentUserRole === 'bdm' && proposal.status === 'approved') {
-                 actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${proposal.id}')">Submit to Client</button>`;
-            }
-             
-            const modalHtml = `
-                <div class="modal-overlay" onclick="if (event.target === this) closeModal()">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <h2>${proposal.projectName}</h2>
-                        <p><strong>Client:</strong> ${proposal.clientCompany}</p>
-                        <p><strong>Status:</strong> <span class="proposal-status status-${proposal.status.replace(/_/g, '-')}">${proposal.status.replace(/_/g, ' ')}</span></p>
-                        <hr style="margin: 1rem 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div><h4>Scope of Work:</h4> <p>${proposal.scopeOfWork}</p></div>
-                        <div><h4>Estimation:</h4> ${renderObject(proposal.estimation)}</div>
-                        <div><h4>Pricing:</h4> ${renderObject(proposal.pricing)}</div>
-                        <div><h4>Approval:</h4> ${renderObject(proposal.directorApproval)}</div></div>
-                        <h4>Change Log:</h4> ${renderObject(proposal.changeLog)}
-                        <hr style="margin: 1rem 0;">
-                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                            <button type="button" onclick="closeModal()" class="btn btn-outline">Close</button>
-                            ${actionsHtml}
-                        </div>
-                    </div>
-                </div>`;
+            if (currentUserRole === 'estimator' && p.status === 'pending_estimation') actionsHtml = `<button class="btn btn-primary" onclick="showEstimationModal('${p.id}')">Add Estimation</button>`;
+            else if (currentUserRole === 'coo' && p.status === 'pending_pricing') actionsHtml = `<button class="btn btn-primary" onclick="showPricingModal('${p.id}')">Set Pricing</button>`;
+            else if (currentUserRole === 'director' && p.status === 'pending_director_approval') actionsHtml = `<button class="btn btn-danger" onclick="rejectProposal('${p.id}')">Reject</button><button class="btn btn-success" onclick="approveProposal('${p.id}')">Approve</button>`;
+            else if (currentUserRole === 'bdm' && p.status === 'approved') actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${p.id}')">Submit to Client</button>`;
+            
+            const modalHtml = `<div class="modal-overlay"><div class="modal-content" style="max-width: 900px;"><h2>${p.projectName}</h2><p><strong>Status:</strong> <span class="proposal-status status-${p.status.replace(/_/g, '-')}">${p.status.replace(/_/g, ' ')}</span></p><hr style="margin: 1rem 0;"><h4>Scope:</h4><p>${p.scopeOfWork}</p><h4>Estimation:</h4>${renderObj(p.estimation)}<h4>Pricing:</h4>${renderObj(p.pricing)}<h4>Approval:</h4>${renderObj(p.directorApproval)}<hr style="margin: 1rem 0;"><div style="display: flex; gap: 1rem; justify-content: flex-end;"><button onclick="closeModal()" class="btn btn-outline">Close</button>${actionsHtml}</div></div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
         
-        async function handleProposalAction(proposalId, action, data = {}, successMessage) {
+        async function handleProposalAction(id, action, data = {}, msg) {
             try {
-                const { success } = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action, data }) });
-                if (success) {
-                    closeModal();
-                    showDashboard();
-                    alert(successMessage);
-                }
+                const { success } = await apiCall(`proposals?id=${id}`, { method: 'PUT', body: JSON.stringify({ action, data }) });
+                if (success) { closeModal(); showDashboard(); alert(msg); }
             } catch(err) { alert(`Error: ${err.message}`); }
         }
 
-        function showEstimationModal(proposalId) {
+        function showEstimationModal(id) {
             closeModal();
-            const modalHtml = `
-            <div class="modal-overlay"><div class="modal-content"><h2>Add Estimation</h2>
-            <form id="estimationForm" style="display: grid; gap: 1rem;">
-                <input type="number" id="totalHours" placeholder="Total Estimated Hours" class="form-control" required>
-                <select id="quoteType" class="form-control" required><option value="Lump Sum">Lump Sum</option><option value="Per Hour">Per Hour</option></select>
-                <textarea id="notes" class="form-control" placeholder="Estimation notes..."></textarea>
-                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </div></form></div></div>`;
+            const modalHtml = `<div class="modal-overlay"><div class="modal-content"><h2>Add Estimation</h2><form id="estimationForm" style="display: grid; gap: 1.5rem;"><input type="number" id="totalHours" placeholder="Total Estimated Hours" class="form-control" required><select id="quoteType" class="form-control" required><option value="Lump Sum">Lump Sum</option><option value="Per Hour">Per Hour</option></select><textarea id="notes" class="form-control" placeholder="Notes..."></textarea><div style="display: flex; gap: 1rem; justify-content: flex-end;"><button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button><button type="submit" class="btn btn-primary">Submit</button></div></form></div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             document.getElementById('estimationForm').addEventListener('submit', (e) => {
                 e.preventDefault();
-                const data = {
-                    totalHours: document.getElementById('totalHours').value,
-                    quoteType: document.getElementById('quoteType').value,
-                    notes: document.getElementById('notes').value
-                };
-                handleProposalAction(proposalId, 'add_estimation', data, 'Estimation added successfully!');
+                const data = { totalHours: document.getElementById('totalHours').value, quoteType: document.getElementById('quoteType').value, notes: document.getElementById('notes').value };
+                handleProposalAction(id, 'add_estimation', data, 'Estimation added!');
             });
         }
         
-        function showPricingModal(proposalId) {
+        function showPricingModal(id) {
             closeModal();
-            const modalHtml = `
-            <div class="modal-overlay"><div class="modal-content"><h2>Set Pricing</h2>
-            <form id="pricingForm" style="display: grid; gap: 1rem;">
-                <input type="number" id="hourlyRate" placeholder="Hourly Rate" class="form-control" required step="0.01">
-                <input type="number" id="profitMargin" placeholder="Profit Margin (%)" class="form-control" required step="0.1">
-                <input type="number" id="quoteValue" placeholder="Final Quote Value" class="form-control" required step="0.01">
-                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </div></form></div></div>`;
+            const modalHtml = `<div class="modal-overlay"><div class="modal-content"><h2>Set Pricing</h2><form id="pricingForm" style="display: grid; gap: 1.5rem;"><input type="number" id="hourlyRate" placeholder="Hourly Rate" class="form-control" required step="0.01"><input type="number" id="profitMargin" placeholder="Profit Margin (%)" class="form-control" required step="0.1"><input type="number" id="quoteValue" placeholder="Final Quote Value" class="form-control" required step="0.01"><div style="display: flex; gap: 1rem; justify-content: flex-end;"><button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button><button type="submit" class="btn btn-primary">Submit</button></div></form></div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             document.getElementById('pricingForm').addEventListener('submit', (e) => {
                 e.preventDefault();
-                const data = {
-                    hourlyRate: document.getElementById('hourlyRate').value,
-                    profitMargin: document.getElementById('profitMargin').value,
-                    quoteValue: document.getElementById('quoteValue').value
-                };
-                handleProposalAction(proposalId, 'set_pricing', data, 'Pricing set successfully!');
+                const data = { hourlyRate: document.getElementById('hourlyRate').value, profitMargin: document.getElementById('profitMargin').value, quoteValue: document.getElementById('quoteValue').value };
+                handleProposalAction(id, 'set_pricing', data, 'Pricing set!');
             });
         }
         
-        async function approveProposal(proposalId) {
-            handleProposalAction(proposalId, 'director_approve', { notes: 'Approved by Director via EBTracker.' }, 'Proposal approved!');
-        }
-
-        async function rejectProposal(proposalId) {
-            const rejectionReason = prompt("Please provide a reason for rejection:");
-            if (rejectionReason) {
-                handleProposalAction(proposalId, 'director_reject', { rejectionReason }, 'Proposal rejected.');
-            }
-        }
-        
-        async function submitToClient(proposalId) {
-            const method = prompt("Submission method (e.g., email, portal):", "email");
-            if(method) {
-                handleProposalAction(proposalId, 'submit_to_client', { method }, 'Proposal submitted to client!');
-            }
-        }
+        async function approveProposal(id) { handleProposalAction(id, 'director_approve', { notes: 'Approved via EBTracker.' }, 'Proposal approved!'); }
+        async function rejectProposal(id) { const reason = prompt("Reason for rejection:"); if (reason) handleProposalAction(id, 'director_reject', { rejectionReason: reason }, 'Proposal rejected and sent for revision.'); }
+        async function submitToClient(id) { const method = prompt("Submission method:", "email"); if(method) handleProposalAction(id, 'submit_to_client', { method }, 'Proposal submitted!'); }
 
         function showFileUpload() {
             setActiveNav('nav-files');
-            const content = `
-                <h2>File Upload</h2>
-                <div class="form-group"><label>Link to Proposal (Optional)</label><input type="text" id="fileProposalId" class="form-control" placeholder="Enter Proposal ID"></div>
-                <div class="upload-area" id="uploadArea">
-                     <span class="upload-icon">📤</span><p>Drag & drop files here, or click to select files</p>
-                    <input type="file" id="fileInput" multiple>
-                </div>
-                <div id="filePreview"></div>
-                <button class="btn btn-primary" onclick="handleFileUpload()" id="uploadBtn" style="display:none;">Upload Files</button>
-                <hr style="margin: 2rem 0;">
-                <h2>Uploaded Files</h2>
-                <div id="fileListContainer">Loading files...</div>`;
+            const content = `<h2>File Management</h2><div class="form-group" style="margin-top: 2rem;"><label>Link to Proposal (Optional)</label><input type="text" id="fileProposalId" class="form-control"></div><div class="upload-area" id="uploadArea"><span>📤</span><p>Drag & drop, or click</p><input type="file" id="fileInput" multiple></div><div id="filePreview"></div><button class="btn btn-primary" onclick="handleFileUpload()" id="uploadBtn" style="display:none;">Upload Files</button><hr style="margin: 2rem 0;"><h2>Uploaded Files</h2><div id="fileListContainer">...</div>`;
             document.getElementById('mainContent').innerHTML = content;
-
             const uploadArea = document.getElementById('uploadArea');
             const fileInput = document.getElementById('fileInput');
-            uploadArea.addEventListener('click', () => fileInput.click());
-            fileInput.addEventListener('change', () => previewFiles(fileInput.files));
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => uploadArea.addEventListener(eName, e => { e.preventDefault(); e.stopPropagation(); }));
+            uploadArea.onclick = () => fileInput.click();
+            fileInput.onchange = () => previewFiles(fileInput.files);
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => { uploadArea.addEventListener(eName, e => { e.preventDefault(); e.stopPropagation(); });});
             ['dragenter', 'dragover'].forEach(eName => uploadArea.addEventListener(eName, () => uploadArea.classList.add('dragover')));
             ['dragleave', 'drop'].forEach(eName => uploadArea.addEventListener(eName, () => uploadArea.classList.remove('dragover')));
-            uploadArea.addEventListener('drop', (e) => previewFiles(e.dataTransfer.files));
-            
+            uploadArea.addEventListener('drop', e => previewFiles(e.dataTransfer.files));
             showFiles();
         }
 
         function previewFiles(files) {
-            let previewHtml = '<h4>Files to Upload:</h4>';
-            Array.from(files).forEach(file => { previewHtml += `<p>${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>`; });
-            document.getElementById('filePreview').innerHTML = previewHtml;
+            document.getElementById('filePreview').innerHTML = '<h4>Files to Upload:</h4>' + Array.from(files).map(f => `<p>${f.name}</p>`).join('');
             document.getElementById('uploadBtn').style.display = 'block';
         }
 
         async function handleFileUpload() {
             const files = document.getElementById('fileInput').files;
             if (!files.length) return;
-            const proposalId = document.getElementById('fileProposalId').value;
             const formData = new FormData();
             Array.from(files).forEach(file => formData.append('files', file));
-            if (proposalId) formData.append('proposalId', proposalId);
-            
+            const pId = document.getElementById('fileProposalId').value;
+            if (pId) formData.append('proposalId', pId);
             try {
                 const { success } = await apiCall('files', { method: 'POST', body: formData });
-                if (success) {
-                    showFileUpload();
-                }
+                if (success) showFileUpload();
             } catch (error) { alert(`Upload failed: ${error.message}`); }
         }
 
@@ -1243,85 +406,33 @@
                 const { success, data } = await apiCall('files');
                 if (success && data) renderFiles(data);
                 else throw new Error('Invalid files response');
-            } catch (error) {
-                document.getElementById('fileListContainer').innerHTML = `<p class="error-message">${error.message}</p>`;
-            }
+            } catch (error) { document.getElementById('fileListContainer').innerHTML = `<p class="error-message">${error.message}</p>`; }
         }
         
         function renderFiles(files) {
-            const filesHtml = files?.length > 0 ? files.map(file => `
-                <div class="file-item">
-                    <div class="file-info">
-                        <div class="file-icon">📄</div>
-                        <div class="file-details">
-                            <h4>${file.originalName}</h4>
-                            <div class="file-meta">
-                                Uploaded by ${file.uploadedByName} on ${formatDate(file.uploadedAt)}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="file-actions">
-                         <a href="${file.url}" target="_blank" rel="noopener noreferrer" class="btn-icon btn-view">View</a>
-                         <button class="btn-icon btn-delete" onclick="deleteFile('${file.id}')">Delete</button>
-                    </div>
-                </div>`).join('') : '<p>No files found.</p>';
+            const filesHtml = files?.length ? files.map(file => `<div class="file-item"><div class="file-info">📄<div class="file-details"><h4>${file.originalName}</h4><div class="file-meta">Uploaded by ${file.uploadedByName} on ${formatDate(file.uploadedAt)}</div></div></div><div><a href="${file.url}" target="_blank" class="btn-sm btn-primary">View</a><button class="btn-sm btn-danger" onclick="deleteFile('${file.id}')">Delete</button></div></div>`).join('') : '<p>No files found.</p>';
             document.getElementById('fileListContainer').innerHTML = filesHtml;
         }
 
-        async function deleteFile(fileId) {
-            if (!confirm('Are you sure you want to delete this file?')) return;
+        async function deleteFile(id) {
+            if (!confirm('Are you sure?')) return;
             try {
-                const { success } = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
+                const { success } = await apiCall(`files?id=${id}`, { method: 'DELETE' });
                 if (success) showFileUpload();
             } catch(err) { alert(`Error: ${err.message}`); }
         }
         
         async function showActivities() {
             setActiveNav('nav-activities');
-            const mainContent = document.getElementById('mainContent');
-            showLoading();
-            mainContent.innerHTML = '';
+            const main = document.getElementById('mainContent');
+            showLoading(); main.innerHTML = '';
             try {
                 const { success, data } = await apiCall('activities');
                 if (success && data) {
-                    mainContent.innerHTML = `<h2>Activity Log</h2><div class="action-items">
-                        ${data.map(act => `
-                            <div class="action-item">
-                                <strong>${act.details}</strong>
-                                <div class="action-meta">By ${act.performedByName} (${act.performedByRole}) on ${formatDate(act.timestamp)}</div>
-                            </div>`).join('')}</div>`;
+                    main.innerHTML = `<h2>Activity Log</h2><div class="action-items">${data.map(act => `<div class="action-item"><strong>${act.details}</strong><div class="action-meta">By ${act.performedByName} (${act.performedByRole}) on ${formatDate(act.timestamp)}</div></div>`).join('')}</div>`;
                 } else { throw new Error('Invalid activities response'); }
-            } catch (error) {
-                mainContent.innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        function renderRecentActivities(activities) {
-            if (!activities?.length) return '';
-            return `<div class="action-items"><h3>Recent Activities</h3>
-                ${activities.map(act => `
-                    <div class="action-item">
-                        <strong>${act.details}</strong>
-                        <div class="action-meta">${formatDate(act.timestamp)}</div>
-                    </div>`).join('')}</div>`;
-        }
-        
-        function formatStatLabel(key) {
-            return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-        }
-        function formatActionTitle(type) {
-            return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        }
-        function getActionButtonText(type) {
-            const map = {
-                'ready_for_client': 'Submit to Client',
-                'estimation_required': 'Add Estimation',
-                'pricing_required': 'Set Pricing',
-                'approval_required': 'Review & Approve'
-            };
-            return map[type] || 'View';
+            } catch (error) { main.innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`; } 
+            finally { hideLoading(); }
         }
     </script>
 </body>
