@@ -1,11 +1,10 @@
-// api/proposals.js
 const admin = require('./_firebase-admin');
 const { verifyToken } = require('../middleware/auth');
-const util = 'util'; // Native Node.js module
+const util = require('util');
 
 const db = admin.firestore();
 
-// Your original allowCors function remains the same
+// This wrapper handles CORS preflight requests
 const allowCors = fn => async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,9 +19,8 @@ const allowCors = fn => async (req, res) => {
 
 const handler = async (req, res) => {
     try {
-        await util.promisify(verifyToken)(req, res);
-
         if (req.method === 'GET') {
+            await util.promisify(verifyToken)(req, res); // Authenticate here
             const { id } = req.query;
             
             if (id) {
@@ -39,6 +37,7 @@ const handler = async (req, res) => {
         }
         
         if (req.method === 'POST') {
+            await util.promisify(verifyToken)(req, res); // Authenticate here
             const { projectName, clientCompany, scopeOfWork, projectType, priority } = req.body;
             if (!projectName || !clientCompany || !scopeOfWork) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
@@ -67,7 +66,6 @@ const handler = async (req, res) => {
 
             const docRef = await db.collection('proposals').add(newProposal);
             
-            // Log activity
             await db.collection('activities').add({
                 type: 'proposal_created',
                 details: `New proposal created: ${projectName} for ${clientCompany}`,
@@ -83,6 +81,7 @@ const handler = async (req, res) => {
         }
 
         if (req.method === 'PUT') {
+            await util.promisify(verifyToken)(req, res); // Authenticate here
             const { id } = req.query;
             const { action, data } = req.body;
             if (!id || !action) {
@@ -155,7 +154,6 @@ const handler = async (req, res) => {
 
             await proposalRef.update(updates);
             
-            // Log activity
             await db.collection('activities').add({ ...baseUpdateData, type: `proposal_${action}`, details: activityDetail });
 
             return res.json({ success: true, message: 'Proposal updated successfully' });
