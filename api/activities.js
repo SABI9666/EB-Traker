@@ -17,9 +17,10 @@ const allowCors = fn => async (req, res) => {
 };
 
 const handler = async (req, res) => {
-    try {
-        if (req.method === 'GET') {
-            await util.promisify(verifyToken)(req, res); // Authenticate here
+    // This structure ensures OPTIONS requests are handled before auth
+    if (req.method === 'GET') {
+        try {
+            await util.promisify(verifyToken)(req, res);
             const { limit = 20, proposalId } = req.query;
             let query = db.collection('activities').orderBy('timestamp', 'desc');
 
@@ -30,13 +31,13 @@ const handler = async (req, res) => {
             const snapshot = await query.limit(parseInt(limit)).get();
             const activities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            return res.json({ success: true, data: activities });
+            return res.status(200).json({ success: true, data: activities });
+        } catch (error) {
+            console.error('Activities API error:', error);
+            return res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
         }
-
+    } else {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
-    } catch (error) {
-        console.error('Activities API error:', error);
-        return res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
     }
 };
 
