@@ -1,4 +1,4 @@
-const { db } = require('../firebase-config');
+const { db, helpers } = require('../firebase-config');
 const { verifyToken } = require('../middleware/auth');
 
 const allowCors = fn => async (req, res) => {
@@ -66,7 +66,15 @@ async function getActivities(req, res) {
 
       const activities = [];
       snapshot.forEach(doc => {
-        activities.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        activities.push({ 
+          id: doc.id, 
+          ...data,
+          // Convert Firestore timestamp to ISO string if needed
+          timestamp: data.timestamp && data.timestamp.toDate ? 
+            data.timestamp.toDate().toISOString() : 
+            data.timestamp
+        });
       });
 
       res.json({
