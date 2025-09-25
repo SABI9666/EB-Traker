@@ -511,6 +511,8 @@
         .btn-view {
             background: var(--primary-blue);
             color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
         }
         .btn-delete {
             background: var(--danger);
@@ -721,14 +723,19 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        // Firebase Configuration - REPLACE WITH YOUR ACTUAL CONFIG
+        // =================================================================================
+        // IMPORTANT: Firebase Configuration
+        // Replace the entire object below with your project's Firebase Web App credentials.
+        // You can find this in your Firebase Console:
+        // Project settings > General > Your apps > Web app > SDK setup and configuration
+        // =================================================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU", // Replace with your actual API key
-            authDomain: "eb-tracker-42881.firebaseapp.com",
-            projectId: "eb-tracker-42881",
-            storageBucket: "eb-tracker-42881.appspot.com",
-            messagingSenderId: "922340749018",
-            appId: "1:922340749018:web:68296d8775a79e71b2bfe3"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
         
         // Initialize Firebase
@@ -741,30 +748,17 @@
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 return 'http://localhost:3000';
             }
-            return 'https://eb-traker.vercel.app'; // Your actual Vercel URL
+            // IMPORTANT: Replace with your actual deployed Vercel URL
+            return 'https://eb-tracker.vercel.app'; 
         }
         const API_BASE = getApiBase();
         console.log('API Base URL:', API_BASE);
 
-        // Authorized users configuration
+        // Authorized users configuration (for client-side UX only, security is on the backend)
         const authorizedUsers = {
-            estimator: [
-                "john.estimator@edanbrook.com",
-                "sarah.technical@edanbrook.com", 
-                "mike.estimation@edanbrook.com",
-                "estimator@edanbrook.com"
-            ],
-            coo: [
-                "coo@edanbrook.com",
-                "operations.manager@edanbrook.com",
-                "michael.operations@edanbrook.com"
-            ],
-            director: [
-                "director@edanbrook.com",
-                "ceo@edanbrook.com",
-                "president@edanbrook.com",
-                "admin@edanbrook.com"
-            ]
+            estimator: ["estimator@edanbrook.com"],
+            coo: ["coo@edanbrook.com"],
+            director: ["director@edanbrook.com", "admin@edanbrook.com"]
         };
 
         // Global variables
@@ -772,7 +766,7 @@
         let currentUserRole = '';
         let authToken = '';
 
-        // --- IMPROVED API Helper Function ---
+        // --- API Helper Function ---
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
             const defaultOptions = {
@@ -781,81 +775,39 @@
                     'Authorization': `Bearer ${authToken}`
                 }
             };
-
             if (options.body instanceof FormData) {
                 delete defaultOptions.headers['Content-Type'];
             }
-
-            const finalOptions = {
-                ...defaultOptions,
-                ...options,
-                headers: {
-                    ...defaultOptions.headers,
-                    ...options.headers
-                }
-            };
-
+            const finalOptions = { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } };
             try {
-                console.log('Making API call to:', url);
-                console.log('With options:', finalOptions);
-
                 const response = await fetch(url, finalOptions);
-                console.log('Response status:', response.status);
-                
                 const responseText = await response.text();
-                console.log('Response text:', responseText.substring(0, 500)); // Log first 500 chars
-
                 if (!response.ok) {
                     let errorData;
-                    try {
-                        errorData = JSON.parse(responseText);
-                    } catch (e) {
-                        console.error('Failed to parse error response:', e);
-                        throw new Error(`API Error ${response.status}: The server returned a non-JSON response. Raw response: ${responseText.substring(0, 200)}...`);
+                    try { errorData = JSON.parse(responseText); } catch (e) {
+                        throw new Error(`API Error ${response.status}: ${responseText.substring(0, 200)}...`);
                     }
                     throw new Error(errorData.message || errorData.error || `Request failed with status ${response.status}`);
                 }
-                
-                if (!responseText) {
-                    return {};
-                }
-
-                try {
-                    return JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('Failed to parse success response:', parseError);
-                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`);
-                }
+                return responseText ? JSON.parse(responseText) : {};
             } catch (error) {
-                console.error('API call error:', error);
+                console.error(`API call to ${endpoint} failed:`, error);
                 throw error;
             }
         }
 
         // --- Utility Functions ---
-        function showLoading() { 
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) spinner.style.display = 'block'; 
-        }
-        
-        function hideLoading() { 
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) spinner.style.display = 'none'; 
-        }
+        function showLoading() { document.getElementById('loadingSpinner').style.display = 'block'; }
+        function hideLoading() { document.getElementById('loadingSpinner').style.display = 'none'; }
         
         function setActiveNav(navId) {
             document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
-            const navElement = document.getElementById(navId);
-            if (navElement) navElement.classList.add('active');
+            document.getElementById(navId)?.classList.add('active');
         }
         
         function showMessage(message, type = 'info') {
             const container = document.getElementById('authMessages');
-            if(container) {
-                container.innerHTML = `<div class="${type}-message">${message}</div>`;
-            } else {
-                alert(`${type.toUpperCase()}: ${message}`);
-            }
+            if(container) container.innerHTML = `<div class="${type}-message">${message}</div>`;
         }
         
         function clearMessages() {
@@ -864,35 +816,33 @@
         }
         
         function closeModal() {
-            const modal = document.querySelector('.modal-overlay');
-            if (modal) {
-                modal.remove();
-            }
+            document.querySelector('.modal-overlay')?.remove();
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp || !timestamp.seconds) return 'N/A';
+            return new Date(timestamp.seconds * 1000).toLocaleString();
         }
 
         // --- App Initialization and Auth ---
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
                     try {
-                        authToken = await user.getIdToken();
-                        console.log('Got auth token, length:', authToken.length);
-                        
+                        authToken = await user.getIdToken(true); // Force refresh token
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
-                            console.log('User role:', currentUserRole);
                             showApp();
                         } else {
-                            console.error('User document not found in Firestore');
                             await auth.signOut();
-                            showMessage('Account Error: User data not found.', 'error');
+                            showMessage('Your user account was not found in the database. Please contact an administrator.', 'error');
                         }
                     } catch (error) {
                         console.error('Error on auth state change:', error);
-                        showMessage('Failed to load user data. Please try again.', 'error');
+                        showMessage('Failed to initialize your session. Please try logging in again.', 'error');
                     }
                 } else {
                     currentUser = null;
@@ -923,8 +873,8 @@
             clearMessages();
         }
 
-        async function handleLogin(event) {
-            event.preventDefault();
+        async function handleLogin(e) {
+            e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             try {
@@ -932,17 +882,12 @@
                 showMessage('Logging in...', 'info');
                 await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
-                console.error('Login error:', error);
-                let errorMessage = 'Login failed. Please check your credentials.';
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                     errorMessage = 'Invalid email or password.';
-                }
-                showMessage(errorMessage, 'error');
+                showMessage(error.code === 'auth/invalid-credential' ? 'Invalid email or password.' : 'Login failed. Please try again.', 'error');
             }
         }
 
-        async function handleRegister(event) {
-            event.preventDefault();
+        async function handleRegister(e) {
+            e.preventDefault();
             const name = document.getElementById('registerName').value;
             const email = document.getElementById('registerEmail').value.toLowerCase();
             const password = document.getElementById('registerPassword').value;
@@ -957,33 +902,22 @@
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 await userCredential.user.updateProfile({ displayName: name });
                 await db.collection('users').doc(userCredential.user.uid).set({
-                    name: name,
-                    email: email,
-                    role: role,
-                    status: 'active',
+                    name, email, role, status: 'active',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                showMessage('Account created! Logging you in...', 'success');
+                showMessage('Account created! Please log in.', 'success');
+                showTab('login');
             } catch (error) {
-                console.error('Registration error:', error);
-                let errorMessage = 'Registration failed. Please try again.';
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = 'An account with this email already exists.';
-                }
-                showMessage(errorMessage, 'error');
+                showMessage(error.code === 'auth/email-already-in-use' ? 'An account with this email already exists.' : 'Registration failed. Please try again.', 'error');
             }
         }
         
         function isAuthorizedEmail(email, role) {
-            return authorizedUsers[role] && authorizedUsers[role].includes(email.toLowerCase().trim());
+            return authorizedUsers[role]?.includes(email.toLowerCase().trim());
         }
 
         async function logout() {
-            try {
-                await auth.signOut();
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
+            await auth.signOut();
         }
         
         function showApp() {
@@ -1000,82 +934,32 @@
             clearMessages();
         }
 
-        // --- Dashboard Rendering ---
+        // --- Dashboard ---
         async function showDashboard() {
             setActiveNav('nav-dashboard');
-            showLoading();
             const mainContent = document.getElementById('mainContent');
-            
-            // Clear content except for loading spinner
-            Array.from(mainContent.children).forEach(child => {
-                if (child.id !== 'loadingSpinner') {
-                    child.remove();
-                }
-            });
-
+            mainContent.innerHTML = ''; 
+            showLoading();
             try {
-                console.log('Fetching dashboard data...');
-                const dashboardData = await apiCall('dashboard');
-                console.log('Dashboard data received:', dashboardData);
-                
-                if (dashboardData.success && dashboardData.data) {
-                    renderDashboard(dashboardData.data);
-                } else {
-                    throw new Error('Invalid dashboard response format');
-                }
+                const { success, data } = await apiCall('dashboard');
+                if (success && data) {
+                    renderDashboard(data);
+                } else { throw new Error('Invalid dashboard response format'); }
             } catch (error) {
-                console.error('Dashboard error:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.innerHTML = `
-                    <div class="error-message">
-                        <h3>Error Loading Dashboard</h3>
-                        <p>${error.message}</p>
-                        <div class="debug-info">
-                            <strong>Debug Information:</strong><br>
-                            API Base: ${API_BASE}<br>
-                            User Role: ${currentUserRole}<br>
-                            Has Token: ${!!authToken}<br>
-                            Current User: ${currentUser?.email || 'None'}
-                        </div>
-                        <button onclick="showDashboard()" class="btn btn-primary" style="margin-top: 1rem;">Retry</button>
-                        <button onclick="testAPI()" class="btn btn-outline" style="margin-top: 1rem; margin-left: 1rem;">Test API</button>
-                    </div>`;
-                mainContent.appendChild(errorDiv);
+                mainContent.innerHTML = `<div class="error-message"><h3>Error Loading Dashboard</h3><p>${error.message}</p></div>`;
             } finally {
                 hideLoading();
             }
         }
 
-        // Test API function for debugging
-        async function testAPI() {
-            showMessage('Testing API connection...', 'info');
-            try {
-                const response = await fetch(`${API_BASE}/api/dashboard`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const text = await response.text();
-                console.log('Raw API response:', text);
-                showMessage(`API Test - Status: ${response.status}, Response: ${text.substring(0, 100)}...`, response.ok ? 'success' : 'error');
-            } catch (error) {
-                console.error('API test error:', error);
-                showMessage(`API Test Failed: ${error.message}`, 'error');
-            }
-        }
-
         function renderDashboard(data) {
-            console.log('Rendering dashboard with data:', data);
-            
             const statsHtml = data.stats ? Object.entries(data.stats).map(([key, value]) => `
                 <div class="stat-card">
                     <div class="stat-number">${value}</div>
                     <div class="stat-label">${formatStatLabel(key)}</div>
-                </div>
-            `).join('') : '<p>No stats available</p>';
+                </div>`).join('') : '';
 
-            const actionItemsHtml = data.actionItems && data.actionItems.length > 0 ? `
+            const actionItemsHtml = data.actionItems?.length > 0 ? `
                 <h3>Your Action Items</h3>
                 ${data.actionItems.map(item => `
                     <div class="action-item">
@@ -1084,39 +968,31 @@
                             <div class="action-meta">${item.clientCompany ? `Client: ${item.clientCompany}` : ''}</div>
                         </div>
                         <div class="action-buttons">
-                            <button class="btn btn-primary btn-sm" onclick="viewProposal('${item.proposalId}')">
-                                ${getActionButtonText(item.type)}
-                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="viewProposal('${item.proposalId}')">${getActionButtonText(item.type)}</button>
                         </div>
-                    </div>
-                `).join('')}` 
-                : `<h3>Action Items</h3><p>No pending action items. All caught up!</p>`;
+                    </div>`).join('')}` : `<h3>Action Items</h3><p>No pending action items. All caught up! 🎉</p>`;
 
-            const dashboardDiv = document.createElement('div');
-            dashboardDiv.innerHTML = `
+            document.getElementById('mainContent').innerHTML = `
                 <h2>Dashboard - ${currentUserRole.toUpperCase()}</h2>
                 <div class="dashboard-stats">${statsHtml}</div>
                 <div class="action-items">${actionItemsHtml}</div>
-                ${data.recentActivities ? renderRecentActivities(data.recentActivities) : ''}
+                ${renderRecentActivities(data.recentActivities)}
             `;
-            
-            document.getElementById('mainContent').appendChild(dashboardDiv);
         }
 
-        // --- Proposals Management ---
+        // --- Proposals ---
         async function showProposals() {
             setActiveNav('nav-proposals');
+            const mainContent = document.getElementById('mainContent');
+            mainContent.innerHTML = '';
             showLoading();
-            document.getElementById('mainContent').innerHTML = '<div class="loading" id="loadingSpinner"><div class="spinner"></div><p>Loading...</p></div>';
             try {
-                const proposalsData = await apiCall('proposals');
-                if (proposalsData.success && proposalsData.data) {
-                    renderProposals(proposalsData.data);
-                } else {
-                    throw new Error('Invalid proposals response format');
-                }
+                const { success, data } = await apiCall('proposals');
+                if (success && data) {
+                    renderProposals(data);
+                } else { throw new Error('Invalid proposals response format'); }
             } catch (error) {
-                document.getElementById('mainContent').innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
+                mainContent.innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
             } finally {
                 hideLoading();
             }
@@ -1124,7 +1000,7 @@
 
         function renderProposals(proposals) {
             const createButton = currentUserRole === 'bdm' ? `<button onclick="showCreateProposalModal()" class="btn btn-primary" style="margin-bottom: 2rem;">Create New Proposal</button>` : '';
-            const proposalsHtml = proposals && proposals.length > 0 ? proposals.map(p => `
+            const proposalsHtml = proposals?.length > 0 ? proposals.map(p => `
                 <div class="proposal-card">
                     <div class="proposal-header">
                         <div>
@@ -1134,13 +1010,12 @@
                         <div class="proposal-status status-${p.status.replace(/_/g, '-')}">${p.status.replace(/_/g, ' ')}</div>
                     </div>
                     <div class="action-meta">
-                        Type: ${p.projectType} | Created: ${new Date(p.createdAt).toLocaleDateString()}
+                        Type: ${p.projectType} | Created: ${formatDate(p.createdAt)}
                     </div>
                     <div style="margin-top: 1rem;">
                         <button onclick="viewProposal('${p.id}')" class="btn btn-outline btn-sm">View Details</button>
                     </div>
-                </div>
-            `).join('') : '<p>No proposals found.</p>';
+                </div>`).join('') : '<p>No proposals found.</p>';
             
             document.getElementById('mainContent').innerHTML = `
                 <h2>Proposals Management</h2>
@@ -1149,25 +1024,18 @@
         }
 
         async function viewProposal(proposalId) {
-            showLoading();
             try {
-                const proposalData = await apiCall(`proposals?id=${proposalId}`);
-                if (proposalData.success && proposalData.data) {
-                    renderProposalDetailModal(proposalData.data);
-                } else {
-                    throw new Error('Invalid proposal response format');
-                }
-            } catch (error) {
-                alert(`Error fetching proposal: ${error.message}`);
-            } finally {
-                hideLoading();
-            }
+                const { success, data } = await apiCall(`proposals?id=${proposalId}`);
+                if (success && data) {
+                    renderProposalDetailModal(data);
+                } else { throw new Error('Invalid proposal response format'); }
+            } catch (error) { alert(`Error fetching proposal: ${error.message}`); }
         }
         
         // --- Modals (Create, Details, Actions) ---
         function showCreateProposalModal() {
             const modalHtml = `
-                <div class="modal-overlay">
+                <div class="modal-overlay" onclick="if (event.target === this) closeModal()">
                     <div class="modal-content">
                         <h2 style="color: var(--primary-blue); margin-bottom: 2rem;">Create New Proposal</h2>
                         <form id="createProposalForm" style="display: grid; gap: 1rem;">
@@ -1194,47 +1062,40 @@
                     scopeOfWork: document.getElementById('scopeOfWork').value,
                 };
                 try {
-                    const response = await apiCall('proposals', { method: 'POST', body: JSON.stringify(formData) });
-                    if (response.success) {
+                    const { success } = await apiCall('proposals', { method: 'POST', body: JSON.stringify(formData) });
+                    if (success) {
                         closeModal();
                         showProposals();
-                        alert('Proposal created successfully!');
-                    } else {
-                        throw new Error(response.error || 'Creation failed');
                     }
-                } catch (error) {
-                    alert(`Creation failed: ${error.message}`);
-                }
+                } catch (error) { alert(`Creation failed: ${error.message}`); }
             });
         }
         
         function renderProposalDetailModal(proposal) {
             const renderObject = (obj) => obj ? `<pre style="white-space: pre-wrap; word-break: break-all; background: #f4f4f4; padding: 10px; border-radius: 5px;">${JSON.stringify(obj, null, 2)}</pre>` : 'Not available';
-
             let actionsHtml = '';
             if (currentUserRole === 'estimator' && proposal.status === 'pending_estimation') {
                 actionsHtml = `<button class="btn btn-primary" onclick="showEstimationModal('${proposal.id}')">Add Estimation</button>`;
             } else if (currentUserRole === 'coo' && proposal.status === 'pending_pricing') {
                  actionsHtml = `<button class="btn btn-primary" onclick="showPricingModal('${proposal.id}')">Set Pricing</button>`;
             } else if (currentUserRole === 'director' && proposal.status === 'pending_director_approval') {
-                actionsHtml = `
-                    <button class="btn btn-danger" onclick="rejectProposal('${proposal.id}')">Reject</button>
-                    <button class="btn btn-success" onclick="approveProposal('${proposal.id}')">Approve</button>`;
+                actionsHtml = `<button class="btn btn-danger" onclick="rejectProposal('${proposal.id}')">Reject</button>
+                               <button class="btn btn-success" onclick="approveProposal('${proposal.id}')">Approve</button>`;
             } else if (currentUserRole === 'bdm' && proposal.status === 'approved') {
                  actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${proposal.id}')">Submit to Client</button>`;
             }
              
             const modalHtml = `
-                <div class="modal-overlay">
+                <div class="modal-overlay" onclick="if (event.target === this) closeModal()">
                     <div class="modal-content" style="max-width: 900px;">
                         <h2>${proposal.projectName}</h2>
                         <p><strong>Client:</strong> ${proposal.clientCompany}</p>
                         <p><strong>Status:</strong> <span class="proposal-status status-${proposal.status.replace(/_/g, '-')}">${proposal.status.replace(/_/g, ' ')}</span></p>
-                        <hr style="margin: 1rem 0;">
-                        <h4>Scope of Work:</h4> <p>${proposal.scopeOfWork}</p>
-                        <h4>Estimation Details:</h4> ${renderObject(proposal.estimation)}
-                        <h4>Pricing Details:</h4> ${renderObject(proposal.pricing)}
-                        <h4>Director Approval:</h4> ${renderObject(proposal.directorApproval)}
+                        <hr style="margin: 1rem 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div><h4>Scope of Work:</h4> <p>${proposal.scopeOfWork}</p></div>
+                        <div><h4>Estimation:</h4> ${renderObject(proposal.estimation)}</div>
+                        <div><h4>Pricing:</h4> ${renderObject(proposal.pricing)}</div>
+                        <div><h4>Approval:</h4> ${renderObject(proposal.directorApproval)}</div></div>
                         <h4>Change Log:</h4> ${renderObject(proposal.changeLog)}
                         <hr style="margin: 1rem 0;">
                         <div style="display: flex; gap: 1rem; justify-content: flex-end;">
@@ -1245,128 +1106,81 @@
                 </div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
+        
+        async function handleProposalAction(proposalId, action, data = {}, successMessage) {
+            try {
+                const { success } = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action, data }) });
+                if (success) {
+                    closeModal();
+                    showDashboard(); // Refresh dashboard to see updated action items
+                    alert(successMessage);
+                }
+            } catch(err) { alert(`Error: ${err.message}`); }
+        }
 
         function showEstimationModal(proposalId) {
-            closeModal(); // Close detail modal first
+            closeModal();
             const modalHtml = `
-            <div class="modal-overlay">
-                <div class="modal-content">
-                    <h2>Add Estimation</h2>
-                    <form id="estimationForm" style="display: grid; gap: 1rem;">
-                        <input type="number" id="totalHours" placeholder="Total Estimated Hours" class="form-control" required>
-                        <select id="quoteType" class="form-control" required><option value="Lump Sum">Lump Sum</option><option value="Per Hour">Per Hour</option></select>
-                        <textarea id="notes" class="form-control" placeholder="Estimation notes..."></textarea>
-                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                             <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                             <button type="submit" class="btn btn-primary">Submit</button>
-                        </div>
-                    </form>
-                </div>
-            </div>`;
+            <div class="modal-overlay"><div class="modal-content"><h2>Add Estimation</h2>
+            <form id="estimationForm" style="display: grid; gap: 1rem;">
+                <input type="number" id="totalHours" placeholder="Total Estimated Hours" class="form-control" required>
+                <select id="quoteType" class="form-control" required><option value="Lump Sum">Lump Sum</option><option value="Per Hour">Per Hour</option></select>
+                <textarea id="notes" class="form-control" placeholder="Estimation notes..."></textarea>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div></form></div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-            document.getElementById('estimationForm').addEventListener('submit', async (e) => {
+            document.getElementById('estimationForm').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const data = {
                     totalHours: document.getElementById('totalHours').value,
                     quoteType: document.getElementById('quoteType').value,
                     notes: document.getElementById('notes').value
                 };
-                try {
-                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'add_estimation', data }) });
-                    if (response.success) {
-                        closeModal();
-                        showDashboard();
-                        alert('Estimation added successfully!');
-                    } else {
-                        throw new Error(response.error || 'Update failed');
-                    }
-                } catch(err) { alert(`Error: ${err.message}`); }
+                handleProposalAction(proposalId, 'add_estimation', data, 'Estimation added successfully!');
             });
         }
         
         function showPricingModal(proposalId) {
             closeModal();
             const modalHtml = `
-            <div class="modal-overlay">
-                <div class="modal-content">
-                    <h2>Set Pricing</h2>
-                    <form id="pricingForm" style="display: grid; gap: 1rem;">
-                        <input type="number" id="hourlyRate" placeholder="Hourly Rate" class="form-control" required>
-                        <input type="number" id="profitMargin" placeholder="Profit Margin (%)" class="form-control" required>
-                        <input type="number" id="quoteValue" placeholder="Final Quote Value" class="form-control" required>
-                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                             <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                             <button type="submit" class="btn btn-primary">Submit</button>
-                        </div>
-                    </form>
-                </div>
-            </div>`;
+            <div class="modal-overlay"><div class="modal-content"><h2>Set Pricing</h2>
+            <form id="pricingForm" style="display: grid; gap: 1rem;">
+                <input type="number" id="hourlyRate" placeholder="Hourly Rate" class="form-control" required step="0.01">
+                <input type="number" id="profitMargin" placeholder="Profit Margin (%)" class="form-control" required step="0.1">
+                <input type="number" id="quoteValue" placeholder="Final Quote Value" class="form-control" required step="0.01">
+                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div></form></div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-            document.getElementById('pricingForm').addEventListener('submit', async (e) => {
+            document.getElementById('pricingForm').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const data = {
                     hourlyRate: document.getElementById('hourlyRate').value,
                     profitMargin: document.getElementById('profitMargin').value,
                     quoteValue: document.getElementById('quoteValue').value
                 };
-                 try {
-                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'set_pricing', data }) });
-                    if (response.success) {
-                        closeModal();
-                        showDashboard();
-                        alert('Pricing set successfully!');
-                    } else {
-                        throw new Error(response.error || 'Update failed');
-                    }
-                } catch(err) { alert(`Error: ${err.message}`); }
+                handleProposalAction(proposalId, 'set_pricing', data, 'Pricing set successfully!');
             });
         }
         
         async function approveProposal(proposalId) {
-            const data = { notes: 'Approved by Director via EBTracker.' };
-            try {
-                const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'director_approve', data }) });
-                if (response.success) {
-                    closeModal();
-                    showDashboard();
-                    alert('Proposal approved successfully!');
-                } else {
-                    throw new Error(response.error || 'Approval failed');
-                }
-            } catch(err) { alert(`Error: ${err.message}`); }
+            handleProposalAction(proposalId, 'director_approve', { notes: 'Approved by Director via EBTracker.' }, 'Proposal approved!');
         }
 
         async function rejectProposal(proposalId) {
             const rejectionReason = prompt("Please provide a reason for rejection:");
             if (rejectionReason) {
-                const data = { rejectionReason };
-                try {
-                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'director_reject', data }) });
-                    if (response.success) {
-                        closeModal();
-                        showDashboard();
-                        alert('Proposal rejected.');
-                    } else {
-                        throw new Error(response.error || 'Rejection failed');
-                    }
-                } catch(err) { alert(`Error: ${err.message}`); }
+                handleProposalAction(proposalId, 'director_reject', { rejectionReason }, 'Proposal rejected.');
             }
         }
         
         async function submitToClient(proposalId) {
             const method = prompt("Submission method (e.g., email, portal):", "email");
             if(method) {
-                const data = { method };
-                try {
-                    const response = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action: 'submit_to_client', data }) });
-                    if (response.success) {
-                        closeModal();
-                        showDashboard();
-                        alert('Proposal submitted to client successfully!');
-                    } else {
-                        throw new Error(response.error || 'Submission failed');
-                    }
-                } catch(err) { alert(`Error: ${err.message}`); }
+                handleProposalAction(proposalId, 'submit_to_client', { method }, 'Proposal submitted to client!');
             }
         }
 
@@ -1375,189 +1189,131 @@
             setActiveNav('nav-files');
             const content = `
                 <h2>File Upload</h2>
-                <div class="form-group">
-                    <label>Link to Proposal (Optional)</label>
-                    <input type="text" id="fileProposalId" class="form-control" placeholder="Enter Proposal ID">
-                </div>
+                <div class="form-group"><label>Link to Proposal (Optional)</label><input type="text" id="fileProposalId" class="form-control" placeholder="Enter Proposal ID"></div>
                 <div class="upload-area" id="uploadArea">
-                     <span class="upload-icon">📤</span>
-                    <p>Drag & drop files here, or click to select files</p>
+                     <span class="upload-icon">📤</span><p>Drag & drop files here, or click to select files</p>
                     <input type="file" id="fileInput" multiple>
                 </div>
                 <div id="filePreview"></div>
                 <button class="btn btn-primary" onclick="handleFileUpload()" id="uploadBtn" style="display:none;">Upload Files</button>
                 <hr style="margin: 2rem 0;">
                 <h2>Uploaded Files</h2>
-                <div id="fileListContainer">Loading files...</div>
-            `;
+                <div id="fileListContainer">Loading files...</div>`;
             document.getElementById('mainContent').innerHTML = content;
 
             const uploadArea = document.getElementById('uploadArea');
             const fileInput = document.getElementById('fileInput');
             uploadArea.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', () => previewFiles(fileInput.files));
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, preventDefaults, false);
-            });
-            ['dragenter', 'dragover'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
-            });
-            ['dragleave', 'drop'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
-            });
-            uploadArea.addEventListener('drop', (e) => previewFiles(e.dataTransfer.files), false);
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => uploadArea.addEventListener(eName, e => { e.preventDefault(); e.stopPropagation(); }));
+            ['dragenter', 'dragover'].forEach(eName => uploadArea.addEventListener(eName, () => uploadArea.classList.add('dragover')));
+            ['dragleave', 'drop'].forEach(eName => uploadArea.addEventListener(eName, () => uploadArea.classList.remove('dragover')));
+            uploadArea.addEventListener('drop', (e) => previewFiles(e.dataTransfer.files));
             
             showFiles();
         }
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
         function previewFiles(files) {
             let previewHtml = '<h4>Files to Upload:</h4>';
-            Array.from(files).forEach(file => {
-                previewHtml += `<p>${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>`;
-            });
+            Array.from(files).forEach(file => { previewHtml += `<p>${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>`; });
             document.getElementById('filePreview').innerHTML = previewHtml;
             document.getElementById('uploadBtn').style.display = 'block';
         }
 
         async function handleFileUpload() {
             const files = document.getElementById('fileInput').files;
-            if (!files.length) {
-                alert('Please select files to upload.');
-                return;
-            }
+            if (!files.length) return;
             const proposalId = document.getElementById('fileProposalId').value;
             const formData = new FormData();
             Array.from(files).forEach(file => formData.append('files', file));
-            if (proposalId) {
-                formData.append('proposalId', proposalId);
-            }
+            if (proposalId) formData.append('proposalId', proposalId);
             
-            showLoading();
             try {
-                const response = await apiCall('files', { method: 'POST', body: formData });
-                if (response.success) {
-                    alert('Files uploaded successfully!');
+                const { success } = await apiCall('files', { method: 'POST', body: formData });
+                if (success) {
                     showFileUpload(); // Refresh view
-                } else {
-                    throw new Error(response.error || 'Upload failed');
                 }
-            } catch (error) {
-                alert(`Upload failed: ${error.message}`);
-            } finally {
-                hideLoading();
-            }
+            } catch (error) { alert(`Upload failed: ${error.message}`); }
         }
 
         async function showFiles() {
             try {
-                const filesData = await apiCall('files');
-                if (filesData.success && filesData.data) {
-                    renderFiles(filesData.data);
-                } else {
-                    throw new Error(filesData.error || 'Invalid files response');
-                }
+                const { success, data } = await apiCall('files');
+                if (success && data) renderFiles(data);
+                else throw new Error('Invalid files response');
             } catch (error) {
                 document.getElementById('fileListContainer').innerHTML = `<p class="error-message">${error.message}</p>`;
             }
         }
         
         function renderFiles(files) {
-            const filesHtml = files && files.length > 0 ? files.map(file => `
+            const filesHtml = files?.length > 0 ? files.map(file => `
                 <div class="file-item">
                     <div class="file-info">
                         <div class="file-icon">📄</div>
                         <div class="file-details">
                             <h4>${file.originalName}</h4>
                             <div class="file-meta">
-                                Uploaded by ${file.uploadedByName} on ${new Date(file.uploadedAt).toLocaleDateString()}
+                                Uploaded by ${file.uploadedByName} on ${formatDate(file.uploadedAt)}
                             </div>
                         </div>
                     </div>
                     <div class="file-actions">
+                         <a href="${file.url}" target="_blank" rel="noopener noreferrer" class="btn-icon btn-view">View</a>
                          <button class="btn-icon btn-delete" onclick="deleteFile('${file.id}')">Delete</button>
                     </div>
-                </div>
-            `).join('') : '<p>No files found.</p>';
+                </div>`).join('') : '<p>No files found.</p>';
             document.getElementById('fileListContainer').innerHTML = filesHtml;
         }
 
         async function deleteFile(fileId) {
             if (!confirm('Are you sure you want to delete this file?')) return;
             try {
-                const response = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
-                if (response.success) {
-                    alert('File deleted');
-                    showFileUpload();
-                } else {
-                    throw new Error(response.error || 'Delete failed');
-                }
-            } catch(err) {
-                alert(`Error: ${err.message}`);
-            }
+                const { success } = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
+                if (success) showFileUpload();
+            } catch(err) { alert(`Error: ${err.message}`); }
         }
         
         // --- Activities View ---
         async function showActivities() {
             setActiveNav('nav-activities');
+            const mainContent = document.getElementById('mainContent');
+            mainContent.innerHTML = '';
             showLoading();
-            document.getElementById('mainContent').innerHTML = '<div class="loading" id="loadingSpinner"><div class="spinner"></div><p>Loading...</p></div>';
             try {
-                const activitiesData = await apiCall('activities');
-                if (activitiesData.success && activitiesData.data) {
-                    const activitiesHtml = `
-                        <h2>Activity Log</h2>
-                        <div class="action-items">
-                        ${activitiesData.data.map(act => `
+                const { success, data } = await apiCall('activities');
+                if (success && data) {
+                    mainContent.innerHTML = `<h2>Activity Log</h2><div class="action-items">
+                        ${data.map(act => `
                             <div class="action-item">
                                 <strong>${act.details}</strong>
-                                <div class="action-meta">
-                                    By ${act.performedByName} (${act.performedByRole}) on ${new Date(act.timestamp).toLocaleString()}
-                                </div>
-                            </div>
-                        `).join('')}
-                        </div>
-                    `;
-                    document.getElementById('mainContent').innerHTML = activitiesHtml;
-                } else {
-                    throw new Error(activitiesData.error || 'Invalid activities response');
-                }
+                                <div class="action-meta">By ${act.performedByName} (${act.performedByRole}) on ${formatDate(act.timestamp)}</div>
+                            </div>`).join('')}</div>`;
+                } else { throw new Error('Invalid activities response'); }
             } catch (error) {
-                document.getElementById('mainContent').innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
+                mainContent.innerHTML = `<div class="error-message"><h3>Error:</h3><p>${error.message}</p></div>`;
             } finally {
                 hideLoading();
             }
         }
         
         function renderRecentActivities(activities) {
-            if (!activities || activities.length === 0) return '';
-            return `
-                <div class="action-items">
-                    <h3>Recent Activities</h3>
-                    ${activities.map(act => `
-                        <div class="action-item">
-                            <strong>${act.details}</strong>
-                            <div class="action-meta">
-                                ${new Date(act.timestamp?.seconds * 1000 || act.timestamp).toLocaleString()}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>`;
+            if (!activities?.length) return '';
+            return `<div class="action-items"><h3>Recent Activities</h3>
+                ${activities.map(act => `
+                    <div class="action-item">
+                        <strong>${act.details}</strong>
+                        <div class="action-meta">${formatDate(act.timestamp)}</div>
+                    </div>`).join('')}</div>`;
         }
         
-        // --- Helper Functions for UI Text ---
+        // --- UI Text Helpers ---
         function formatStatLabel(key) {
             return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
         }
-
         function formatActionTitle(type) {
             return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
-
         function getActionButtonText(type) {
             const map = {
                 'ready_for_client': 'Submit to Client',
@@ -1566,71 +1322,6 @@
                 'approval_required': 'Review & Approve'
             };
             return map[type] || 'View';
-        }
-
-        async function debugAPI() {
-            console.log('=== API DEBUG TEST ===');
-            console.log('API Base:', API_BASE);
-            console.log('Auth Token Length:', authToken?.length || 'No token');
-            console.log('Current User:', currentUser?.email || 'No user');
-            
-            const testUrl = `${API_BASE}/api/dashboard`;
-            console.log('Testing URL:', testUrl);
-
-            try {
-                const response = await fetch(testUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                console.log('Response Status:', response.status);
-                console.log('Response Headers:', [...response.headers.entries()]);
-                
-                const rawText = await response.text();
-                console.log('Raw Response:', rawText);
-                
-                // Check if it's HTML
-                if (rawText.includes('<html>') || rawText.includes('<!DOCTYPE')) {
-                    console.error('❌ API returned HTML instead of JSON');
-                    console.log('This means your Vercel function is crashing or not deployed correctly');
-                } else {
-                    console.log('✅ Response appears to be text/JSON');
-                }
-                
-                // Try to parse as JSON
-                try {
-                    const jsonData = JSON.parse(rawText);
-                    console.log('✅ Parsed JSON:', jsonData);
-                } catch (parseError) {
-                    console.error('❌ JSON Parse Error:', parseError.message);
-                    console.log('First 200 chars:', rawText.substring(0, 200));
-                }
-            
-            } catch (fetchError) {
-                console.error('❌ Fetch Error:', fetchError);
-            }
-            
-            console.log('=== END DEBUG TEST ===');
-        }
-
-        async function testAPIEndpoint() {
-            const endpoints = ['dashboard', 'proposals', 'activities'];
-            
-            for (const endpoint of endpoints) {
-                console.log(`Testing ${endpoint}...`);
-                try {
-                    const response = await fetch(`${API_BASE}/api/${endpoint}`, {
-                        headers: { 'Authorization': `Bearer ${authToken}` }
-                    });
-                    const text = await response.text();
-                    console.log(`${endpoint}: ${response.status} - ${text.substring(0, 100)}...`);
-                } catch (e) {
-                    console.log(`${endpoint}: ERROR - ${e.message}`);
-                }
-            }
         }
     </script>
 </body>
