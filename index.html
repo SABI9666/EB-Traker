@@ -410,17 +410,15 @@
             font-size: 0.85rem;
             width: auto;
         }
-        
-        /* UPDATED LOADING SPINNER STYLES */
         .loading {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(248, 250, 251, 0.85); /* Semi-transparent background */
+            background: rgba(248, 250, 251, 0.85);
             z-index: 9999;
-            display: none; /* Initially hidden */
+            display: none;
             justify-content: center;
             align-items: center;
             flex-direction: column;
@@ -699,7 +697,6 @@
         </div>
     </div>
     <div id="appContainer" class="app-container">
-        <!-- MOVED LOADING SPINNER HERE (OUTSIDE OF MAIN CONTENT) -->
         <div class="loading" id="loadingSpinner">
             <div class="spinner"></div>
             <p>Loading...</p>
@@ -730,7 +727,6 @@
                 </ul>
             </nav>
             <main class="main-content" id="mainContent">
-                <!-- SPINNER IS NO LONGER HERE -->
             </main>
         </div>
     </div>
@@ -739,49 +735,40 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        // =================================================================================
-        // Firebase Configuration - Updated with your project's credentials.
-        // =================================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyAoRjQqAP-3QO9rjoQK7SSZ788lyMmhXmU",
             authDomain: "eb-tracker-42881.firebaseapp.com",
             projectId: "eb-tracker-42881",
-            // NOTE: Corrected storageBucket format to the standard '.appspot.com'
             storageBucket: "eb-tracker-42881.appspot.com",
             messagingSenderId: "922340749018",
             appId: "1:922340749018:web:68296d8775a79e71b2bfe3",
             measurementId: "G-Q0HVWG99L7"
         };
         
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // API Configuration
         function getApiBase() {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 return 'http://localhost:3000';
             }
-            // IMPORTANT: Replace with your actual deployed Vercel URL
-            return 'https://eb-tracker.vercel.app'; 
+            // CORRECTED URL to use 'eb-traker'
+            return 'https://eb-traker.vercel.app'; 
         }
         const API_BASE = getApiBase();
         console.log('API Base URL:', API_BASE);
 
-        // Authorized users configuration (for client-side UX only, security is on the backend)
         const authorizedUsers = {
             estimator: ["estimator@edanbrook.com"],
             coo: ["coo@edanbrook.com"],
             director: ["director@edanbrook.com", "admin@edanbrook.com"]
         };
 
-        // Global variables
         let currentUser = null;
         let currentUserRole = '';
         let authToken = '';
 
-        // --- API Helper Function ---
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
             const defaultOptions = {
@@ -811,10 +798,9 @@
             }
         }
 
-        // --- Utility Functions (UPDATED) ---
         function showLoading() { 
             const spinner = document.getElementById('loadingSpinner');
-            if (spinner) spinner.style.display = 'flex'; // Use flex for centering
+            if (spinner) spinner.style.display = 'flex';
         }
         function hideLoading() { 
             const spinner = document.getElementById('loadingSpinner');
@@ -845,14 +831,13 @@
             return new Date(timestamp.seconds * 1000).toLocaleString();
         }
 
-        // --- App Initialization and Auth ---
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
                     try {
-                        authToken = await user.getIdToken(true); // Force refresh token
+                        authToken = await user.getIdToken(true);
                         const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             currentUserRole = userDoc.data().role;
@@ -955,7 +940,6 @@
             clearMessages();
         }
 
-        // --- Dashboard ---
         async function showDashboard() {
             setActiveNav('nav-dashboard');
             const mainContent = document.getElementById('mainContent');
@@ -1001,7 +985,6 @@
             `;
         }
 
-        // --- Proposals ---
         async function showProposals() {
             setActiveNav('nav-proposals');
             const mainContent = document.getElementById('mainContent');
@@ -1053,7 +1036,6 @@
             } catch (error) { alert(`Error fetching proposal: ${error.message}`); }
         }
         
-        // --- Modals (Create, Details, Actions) ---
         function showCreateProposalModal() {
             const modalHtml = `
                 <div class="modal-overlay" onclick="if (event.target === this) closeModal()">
@@ -1133,7 +1115,7 @@
                 const { success } = await apiCall(`proposals?id=${proposalId}`, { method: 'PUT', body: JSON.stringify({ action, data }) });
                 if (success) {
                     closeModal();
-                    showDashboard(); // Refresh dashboard to see updated action items
+                    showDashboard();
                     alert(successMessage);
                 }
             } catch(err) { alert(`Error: ${err.message}`); }
@@ -1205,7 +1187,6 @@
             }
         }
 
-        // --- File Management ---
         function showFileUpload() {
             setActiveNav('nav-files');
             const content = `
@@ -1252,7 +1233,7 @@
             try {
                 const { success } = await apiCall('files', { method: 'POST', body: formData });
                 if (success) {
-                    showFileUpload(); // Refresh view
+                    showFileUpload();
                 }
             } catch (error) { alert(`Upload failed: ${error.message}`); }
         }
@@ -1295,7 +1276,6 @@
             } catch(err) { alert(`Error: ${err.message}`); }
         }
         
-        // --- Activities View ---
         async function showActivities() {
             setActiveNav('nav-activities');
             const mainContent = document.getElementById('mainContent');
@@ -1328,7 +1308,6 @@
                     </div>`).join('')}</div>`;
         }
         
-        // --- UI Text Helpers ---
         function formatStatLabel(key) {
             return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
         }
@@ -1347,3 +1326,4 @@
     </script>
 </body>
 </html>
+
