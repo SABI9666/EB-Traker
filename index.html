@@ -1114,8 +1114,11 @@
                     ${JSON.stringify(obj, null, 2)}
                 </pre>
             ` : '<p style="color: var(--text-light); font-style: italic;">Not available</p>';
-            
+
             let actionsHtml = '';
+            let downloadSection = '';
+
+            // Role-based actions
             if (currentUserRole === 'estimator' && p.status === 'pending_estimation') {
                 actionsHtml = `<button class="btn btn-primary" onclick="showEstimationModal('${p.id}')">Add Estimation</button>`;
             } else if (currentUserRole === 'coo' && p.status === 'pending_pricing') {
@@ -1124,17 +1127,26 @@
                 actionsHtml = `
                     <button class="btn btn-danger" onclick="rejectProposal('${p.id}')">Reject</button>
                     <button class="btn btn-success" onclick="approveProposal('${p.id}')">Approve</button>
-                    <button class="btn btn-primary" onclick="downloadEstimation('${p.id}')">Download Estimation</button>
                 `;
             } else if (currentUserRole === 'bdm' && p.status === 'approved') {
-                actionsHtml = `
-                    <button class="btn btn-success" onclick="submitToClient('${p.id}')">Submit to Client</button>
-                    <button class="btn btn-primary" onclick="downloadEstimation('${p.id}')">Download Estimation</button>
-                `;
-            } else if (currentUserRole === 'director') {
-                actionsHtml = `<button class="btn btn-primary" onclick="downloadEstimation('${p.id}')">Download Estimation</button>`;
+                actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${p.id}')">Submit to Client</button>`;
             }
-            
+
+            // Download section based on role and proposal status
+            if (['director', 'coo'].includes(currentUserRole)) {
+                downloadSection = `
+                    <button class="btn btn-primary" onclick="downloadProjectFiles('${p.id}')">Download DWG Files</button>
+                    <button class="btn btn-success" onclick="downloadEstimationFiles('${p.id}')">Download Estimation Files</button>
+                `;
+            } else if (currentUserRole === 'bdm' && ['approved', 'submitted_to_client'].includes(p.status)) {
+                downloadSection = `
+                    <button class="btn btn-primary" onclick="downloadProjectFiles('${p.id}')">Download DWG Files</button>
+                    <button class="btn btn-success" onclick="downloadEstimationFiles('${p.id}')">Download Estimation Files</button>
+                `;
+            } else if (currentUserRole === 'estimator') {
+                downloadSection = `<button class="btn btn-outline" onclick="downloadProjectFiles('${p.id}')">Download DWG Files</button>`;
+            }
+
             const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content" style="max-width: 1000px;">
@@ -1142,14 +1154,14 @@
                             <h2>${p.projectName}</h2>
                             <div class="subtitle">${p.clientCompany}</div>
                         </div>
-                        
+
                         <div style="margin-bottom: 2rem;">
                             <strong>Status:</strong> 
                             <span class="proposal-status status-${p.status.replace(/_/g, '-')}">
                                 ${p.status.replace(/_/g, ' ').toUpperCase()}
                             </span>
                         </div>
-                        
+
                         <div style="display: grid; gap: 2rem;">
                             <div class="form-section">
                                 <h4>Project Details</h4>
@@ -1158,7 +1170,12 @@
                                     ${p.scopeOfWork}
                                 </div>
                             </div>
-                            
+
+                            <div class="form-section">
+                                <h4>Project Files</h4>
+                                <div id="modalProjectFiles">Loading files...</div>
+                            </div>
+
                             <div class="form-section">
                                 <h4>Estimation Details</h4>
                                 ${renderObj(p.estimation)}
@@ -1177,6 +1194,7 @@
                         
                         <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
                             <button onclick="closeModal()" class="btn btn-outline">Close</button>
+                            ${downloadSection}
                             ${actionsHtml}
                         </div>
                     </div>
@@ -1184,9 +1202,17 @@
             `;
             
             document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Load files for this proposal in the modal
+            loadProjectFiles(p.id).then(() => {
+                // Update the modal files view
+                const modalFilesDiv = document.getElementById('modalProjectFiles');
+                if (modalFilesDiv) {
+                    loadModalProjectFiles(p.id);
+                }
+            });
         }
 
-        // Enhanced estimation modal for estimators
         function showEstimationModal(id) {
             closeModal();
             const modalHtml = `
@@ -1195,17 +1221,22 @@
                         <div class="modal-header">
                             <h2>Manhour Entry & Estimation</h2>
                         </div>
-                        
                         <form id="estimationForm" class="modal-form">
                             <div class="form-section">
                                 <h4>Upload BOQ & Calculation Files</h4>
-                                <div class="upload-area" id="boqUploadArea">
+                                <div class="upload-area" id="boqUploadArea" onclick="document.getElementById('boqFileInput').click()">
                                     <div class="upload-icon">📊</div>
                                     <p>Upload BOQ, MTO, and calculation sheets</p>
-                                    <input type="file" id="boqFileInput" multiple accept=".xlsx,.xls,.pdf">
+                                    <input type="file" id="boqFileInput" multiple accept=".xlsx,.xls,.pdf,.dwg" style="display: none;">
                                 </div>
+                                <div id="boqFilePreview"></div>
                             </div>
-                            
+
+                            <div class="form-section">
+                                <h4>View Project Files (DWG, RFQ, etc.)</h4>
+                                <div id="projectFilesView">Loading project files...</div>
+                            </div>
+
                             <div class="form-section">
                                 <h4>Manhour Breakdown</h4>
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
@@ -1235,19 +1266,31 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                                 <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="button" onclick="saveAndContinue('${id}')" class="btn btn-primary">Save Manhours</button>
+                                <button type="button" onclick="uploadEstimationFiles('${id}')" class="btn btn-warning">Upload Estimation Files</button>
                                 <button type="button" onclick="showServiceModal('${id}')" class="btn btn-success">Next: Select Services</button>
                             </div>
                         </form>
                     </div>
                 </div>
             `;
-            
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             
+            // Load project files for this proposal
+            loadProjectFiles(id);
+
+            // File upload preview for BOQ files
+            document.getElementById('boqFileInput').addEventListener('change', function() {
+                const files = this.files;
+                if (files.length > 0) {
+                    document.getElementById('boqFilePreview').innerHTML = 
+                        '<h5>Files to Upload:</h5>' + 
+                        Array.from(files).map(f => `<p>📄 ${f.name}</p>`).join('');
+                }
+            });
+
             // Auto-calculate total hours
             const hourInputs = ['designHours', 'detailingHours', 'checkingHours', 'revisionHours', 'pmHours'];
             hourInputs.forEach(id => {
@@ -1259,6 +1302,155 @@
                 });
             });
         }
+        
+        async function uploadEstimationFiles(proposalId) {
+            const fileInput = document.getElementById('boqFileInput');
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                alert('Please select files to upload first.');
+                return;
+            }
+
+            const formData = new FormData();
+            Array.from(files).forEach(file => formData.append('files', file));
+            formData.append('proposalId', proposalId);
+            formData.append('fileType', 'estimation'); // Mark as estimation files
+
+            try {
+                showLoading();
+                const { success } = await apiCall('files', { method: 'POST', body: formData });
+                if (success) {
+                    alert('Estimation files uploaded successfully!');
+                    // Refresh the file view
+                    loadProjectFiles(proposalId);
+                }
+            } catch (error) {
+                alert(`Upload failed: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function loadProjectFiles(proposalId) {
+            try {
+                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
+                if (success && data) {
+                    const filesHtml = data.length ? data.map(file => `
+                        <div class="action-item" style="margin-bottom: 1rem;">
+                            <div class="action-content">
+                                <strong>📄 ${file.originalName}</strong>
+                                <div class="action-meta">
+                                    Type: ${file.fileType || 'Project File'} | 
+                                    Size: ${(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
+                                    Uploaded by: ${file.uploadedByName}
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                ${canDownloadFile(file) ? `<button class="btn btn-primary btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW/DOWNLOAD</button>` : '<span style="color: #666;">Access Restricted</span>'}
+                            </div>
+                        </div>
+                    `).join('') : '<p>No files found for this project.</p>';
+                    
+                    const projectFilesView = document.getElementById('projectFilesView');
+                    if (projectFilesView) {
+                        projectFilesView.innerHTML = filesHtml;
+                    }
+                }
+            } catch (error) {
+                 const projectFilesView = document.getElementById('projectFilesView');
+                 if(projectFilesView) {
+                    projectFilesView.innerHTML = `<p class="error-message">Error loading files: ${error.message}</p>`;
+                 }
+            }
+        }
+
+        function canDownloadFile(file) {
+            // BDM can download all files
+            if (currentUserRole === 'bdm') return true;
+            // Director can download all files
+            if (currentUserRole === 'director') return true;
+            // COO can download all files
+            if (currentUserRole === 'coo') return true;
+            // Estimator can download project files (DWG, RFQ) but not other estimation files unless they uploaded them
+            if (currentUserRole === 'estimator') {
+                return !file.fileType || file.fileType === 'project' || file.uploadedByUid === currentUser.uid;
+            }
+            return false;
+        }
+
+        async function downloadProjectFiles(proposalId) {
+            try {
+                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
+                if (success && data) {
+                    const projectFiles = data.filter(file => !file.fileType || file.fileType === 'project');
+                    if (projectFiles.length > 0) {
+                        // Create download links for all project files
+                        projectFiles.forEach(file => {
+                            const link = document.createElement('a');
+                            link.href = file.url;
+                            link.download = file.originalName;
+                            link.target = '_blank';
+                            link.click();
+                        });
+                        alert(`Downloaded ${projectFiles.length} project file(s)`);
+                    } else {
+                        alert('No project files found');
+                    }
+                }
+            } catch (error) {
+                alert('Error downloading files: ' + error.message);
+            }
+        }
+
+        async function downloadEstimationFiles(proposalId) {
+            try {
+                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
+                if (success && data) {
+                    const estimationFiles = data.filter(file => file.fileType === 'estimation');
+                    if (estimationFiles.length > 0) {
+                        // Create download links for all estimation files
+                        estimationFiles.forEach(file => {
+                            const link = document.createElement('a');
+                            link.href = file.url;
+                            link.download = file.originalName;
+                            link.target = '_blank';
+                            link.click();
+                        });
+                        alert(`Downloaded ${estimationFiles.length} estimation file(s)`);
+                    } else {
+                        alert('No estimation files found');
+                    }
+                }
+            } catch (error) {
+                alert('Error downloading estimation files: ' + error.message);
+            }
+        }
+
+        async function loadModalProjectFiles(proposalId) {
+            try {
+                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
+                if (success && data) {
+                    const modalFilesDiv = document.getElementById('modalProjectFiles');
+                    if (modalFilesDiv) {
+                        const filesHtml = data.length ? data.map(file => `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f8fafc; border-radius: 5px; margin-bottom: 0.5rem;">
+                                <span>📄 ${file.originalName} (${file.fileType || 'Project'})</span>
+                                ${canDownloadFile(file) ? `<button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">Download</button>` : '<span style="color: #666; font-size: 0.8rem;">Access Restricted</span>'}
+                            </div>
+                        `).join('') : '<p>No files found for this project.</p>';
+
+                        modalFilesDiv.innerHTML = filesHtml;
+                    }
+                }
+            } catch (error) {
+                const modalFilesDiv = document.getElementById('modalProjectFiles');
+                if (modalFilesDiv) {
+                    modalFilesDiv.innerHTML = `<p class="error-message">Error loading files: ${error.message}</p>`;
+                }
+            }
+        }
+
 
         function showServiceModal(id) {
             closeModal();
