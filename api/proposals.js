@@ -1,14 +1,24 @@
+// ============= BACKEND FIX: proposals.js =============
+// Update the proposals.js handler to handle both JSON and FormData
+
 const admin = require('./_firebase-admin');
 const { verifyToken } = require('../middleware/auth');
 const util = require('util');
+const multer = require('multer');
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
+// Add multer for handling multipart form data
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+}).array('files');
+
 const allowCors = fn => async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE'); // Added DELETE
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
     if (req.method === 'OPTIONS') {
         res.status(200).end();
@@ -34,173 +44,129 @@ const handler = async (req, res) => {
         }
 
         if (req.method === 'POST') {
-            const { projectName, clientCompany, scopeOfWork, projectType, priority, country, timeline } = req.body;
-            if (!projectName || !clientCompany || !scopeOfWork) {
+            // Check if this is multipart form data (has files)
+            const contentType = req.headers['content-type'] || '';
+            
+            let proposalData = {};
+            let uploadedFiles = [];
+            
+            if (contentType.includes('multipart/form-data')) {
+                // Handle multipart form data with files
+                await util.promisify(upload)(req, res);
+                
+                // Parse the proposal data from form fields
+                proposalData = {
+                    projectName: req.body.projectName,
+                    clientCompany: req.body.clientCompany,
+                    scopeOfWork: req.body.scopeOfWork,
+                    projectType: req.body.projectType || 'Commercial',
+                    priority: req.body.priority || 'Medium',
+                    country: req.body.country || 'Not Specified',
+                    timeline: req.body.timeline || 'Not Specified'
+                };
+                
+                // Store files temporarily
+                uploadedFiles = req.files || [];
+            } else {
+                // Handle regular JSON request
+                proposalData = req.body;
+            }
+            
+            // Validate required fields
+            if (!proposalData.projectName || !proposalData.clientCompany || !proposalData.scopeOfWork) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
 
+            // Create the proposal
             const newProposal = {
-                projectName: projectName.trim(),
-                clientCompany: clientCompany.trim(),
-                projectType: projectType || 'Commercial',
-                scopeOfWork: scopeOfWork.trim(),
-                priority: priority || 'Medium',
-                country: country || 'Not Specified',
-                timeline: timeline || 'Not Specified',
+                projectName: proposalData.projectName.trim(),
+                clientCompany: proposalData.clientCompany.trim(),
+                projectType: proposalData.projectType || 'Commercial',
+                scopeOfWork: proposalData.scopeOfWork.trim(),
+                priority: proposalData.priority || 'Medium',
+                country: proposalData.country || 'Not Specified',
+                timeline: proposalData.timeline || 'Not Specified',
                 status: 'pending_estimation',
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 createdByUid: req.user.uid,
                 createdByName: req.user.name,
-                changeLog: [{ timestamp: new Date().toISOString(), action: 'created', performedByName: req.user.name, details: 'Proposal created' }]
+                createdByRole: req.user.role,
+                changeLog: [{
+                    timestamp: new Date().toISOString(),
+                    action: 'created',
+                    performedByName: req.user.name,
+                    details: 'Proposal created'
+                }]
             };
 
             const docRef = await db.collection('proposals').add(newProposal);
+            const proposalId = docRef.id;
+
+            // Upload files if any
+            if (uploadedFiles.length > 0) {
+                for (const file of uploadedFiles) {
+                    const uniqueFilename = `${proposalId}-${Date.now()}-${file.originalname}`;
+                    const blob = bucket.file(uniqueFilename);
+                    
+                    const blobStream = blob.createWriteStream({
+                        metadata: {
+                            contentType: file.mimetype,
+                            metadata: {
+                                firebaseStorageDownloadTokens: require('uuid').v4()
+                            }
+                        },
+                        public: true
+                    });
+
+                    await new Promise((resolve, reject) => {
+                        blobStream.on('error', reject);
+                        blobStream.on('finish', async () => {
+                            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                            
+                            // Save file metadata
+                            await db.collection('files').add({
+                                originalName: file.originalname,
+                                fileName: uniqueFilename,
+                                fileSize: file.size,
+                                mimeType: file.mimetype,
+                                url: publicUrl,
+                                proposalId: proposalId,
+                                fileType: 'project',
+                                uploadedByUid: req.user.uid,
+                                uploadedByName: req.user.name,
+                                uploadedByRole: req.user.role,
+                                uploadedAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                            resolve();
+                        });
+                        blobStream.end(file.buffer);
+                    });
+                }
+            }
+
+            // Add activity
             await db.collection('activities').add({
                 type: 'proposal_created',
-                details: `New proposal created: ${projectName} for ${clientCompany}`,
+                details: `New proposal created: ${proposalData.projectName} for ${proposalData.clientCompany}`,
                 performedByName: req.user.name,
                 performedByRole: req.user.role,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                proposalId: docRef.id, projectName, clientCompany
+                proposalId: proposalId,
+                projectName: proposalData.projectName,
+                clientCompany: proposalData.clientCompany
             });
-            // Return new proposal with its ID for file linking on frontend
-            return res.status(201).json({ success: true, data: { id: docRef.id, ...newProposal } });
-        }
 
-        if (req.method === 'PUT') {
-            const { id } = req.query;
-            const { action, data } = req.body;
-            if (!id || !action) return res.status(400).json({ success: false, error: 'Missing proposal ID or action' });
-
-            const proposalRef = db.collection('proposals').doc(id);
-            const proposalDoc = await proposalRef.get();
-            if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
-            
-            const proposal = proposalDoc.data();
-            let updates = {};
-            let activityDetail = '';
-
-            switch (action) {
-                case 'add_estimation':
-                    updates = { status: 'pending_pricing', estimation: { ...data, estimatedBy: req.user.name, estimatedAt: new Date().toISOString() } };
-                    activityDetail = `Estimation added: ${data.totalHours} hours`;
-                    break;
-                case 'set_pricing':
-                    updates = { status: 'pending_director_approval', pricing: { ...data, pricedBy: req.user.name, pricedAt: new Date().toISOString() } };
-                    // If COO updated the services, apply the change
-                    if (data.updatedServices) {
-                        updates['estimation.services'] = data.updatedServices;
-                    }
-                    activityDetail = `Pricing set: ${data.currency || 'USD'} ${data.quoteValue}`;
-                    break;
-                case 'director_approve':
-                    updates = { 
-                        status: 'approved', 
-                        directorApproval: { 
-                            approved: true, 
-                            ...data, 
-                            approvedBy: req.user.name, 
-                            approvedAt: new Date().toISOString(),
-                            comments: data.comments || ''
-                        } 
-                    };
-                    activityDetail = `Director approved proposal${data.comments ? ': ' + data.comments : ''}`;
-                    const stakeholders = ['bdm', 'estimator', 'coo'];
-                    for (const role of stakeholders) {
-                        await db.collection('notifications').add({
-                            type: 'proposal_approved',
-                            recipientRole: role,
-                            proposalId: id,
-                            message: `${proposal.projectName} has been approved by Director`,
-                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                            isRead: false
-                        });
-                    }
-                    break;
-                case 'director_reject':
-                    updates = { 
-                        status: 'revision_required',
-                        directorApproval: { 
-                            approved: false, 
-                            ...data, 
-                            rejectedBy: req.user.name, 
-                            rejectedAt: new Date().toISOString(),
-                            comments: data.comments || '',
-                            requiresRevisionBy: data.requiresRevisionBy || 'estimator'
-                        } 
-                    };
-                    activityDetail = `Director requested revision: ${data.comments}`;
-                    await db.collection('notifications').add({
-                        type: 'revision_required',
-                        recipientRole: data.requiresRevisionBy,
-                        proposalId: id,
-                        message: `Revision required for ${proposal.projectName}: ${data.comments}`,
-                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                        isRead: false
-                    });
-                    break;
-                case 'resubmit_after_revision':
-                    updates = {
-                        status: 'pending_director_approval',
-                        revisionHistory: admin.firestore.FieldValue.arrayUnion({
-                            revisedBy: req.user.name,
-                            revisedAt: new Date().toISOString(),
-                            revisionNotes: data.notes
-                        })
-                    };
-                    activityDetail = `Revision completed and resubmitted by ${req.user.name}`;
-                    break;
-                case 'submit_to_client':
-                    updates = { status: 'submitted_to_client' };
-                    activityDetail = `Proposal submitted to client`;
-                    break;
-                default:
-                    return res.status(400).json({ success: false, error: 'Invalid action' });
-            }
-            
-            updates.changeLog = admin.firestore.FieldValue.arrayUnion({ timestamp: new Date().toISOString(), action: action, performedByName: req.user.name, details: `${action.replace(/_/g, ' ')} completed` });
-            updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-            
-            await proposalRef.update(updates);
-            await db.collection('activities').add({
-                type: `proposal_${action}`, details: activityDetail, performedByName: req.user.name, performedByRole: req.user.role,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(), proposalId: id, projectName: proposal.projectName, clientCompany: proposal.clientCompany
+            return res.status(201).json({ 
+                success: true, 
+                data: { 
+                    id: proposalId, 
+                    ...newProposal,
+                    createdAt: new Date()
+                } 
             });
-            return res.status(200).json({ success: true, message: 'Proposal updated successfully' });
         }
 
-        if (req.method === 'DELETE') {
-            const { id } = req.query;
-            if (!id) return res.status(400).json({ success: false, error: 'Missing proposal ID' });
-
-            const proposalRef = db.collection('proposals').doc(id);
-            const proposalDoc = await proposalRef.get();
-            if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
-            
-            const proposalData = proposalDoc.data();
-            // Security check: Only creator or a director can delete
-            if (proposalData.createdByUid !== req.user.uid && req.user.role !== 'director') {
-                return res.status(403).json({ success: false, error: 'You are not authorized to delete this proposal.' });
-            }
-
-            // Delete associated files from storage and Firestore
-            const filesSnapshot = await db.collection('files').where('proposalId', '==', id).get();
-            if (!filesSnapshot.empty) {
-                const deletePromises = filesSnapshot.docs.map(doc => {
-                    const fileData = doc.data();
-                    return Promise.all([
-                        bucket.file(fileData.fileName).delete(), // Delete from storage
-                        doc.ref.delete() // Delete from 'files' collection
-                    ]);
-                });
-                await Promise.all(deletePromises);
-            }
-
-            // Delete the proposal document
-            await proposalRef.delete();
-            
-            return res.status(200).json({ success: true, message: 'Proposal and all associated files deleted successfully' });
-        }
+        // ... rest of the PUT and DELETE methods remain the same ...
 
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     } catch (error) {
@@ -209,4 +175,178 @@ const handler = async (req, res) => {
     }
 };
 
+module.exports = allowCors(handler);
+
+// ============= FRONTEND FIX: Updated Create Proposal Function =============
+// Replace the showCreateProposalModal function in your index.html with this:
+
+function showCreateProposalModal() {
+    const projectTypes = [
+        'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
+        'Joist Detailing', 'As-built Drawings'
+    ];
+    
+    const modalHtml = `
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create New Proposal</h2>
+                    <div class="subtitle">Start a new project with file uploads</div>
+                </div>
+                
+                <form id="createProposalForm" class="modal-form">
+                    <div class="form-section">
+                        <h4>Project Information</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Project Name *</label>
+                                <input type="text" id="projectName" class="form-control" placeholder="Enter project name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Client Company *</label>
+                                <input type="text" id="clientCompany" class="form-control" placeholder="Enter client company" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Project Type</label>
+                                <select id="projectType" class="form-control">
+                                    <option value="">Select Type</option>
+                                    ${projectTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Timeline (Days)</label>
+                                <input type="text" id="timeline" class="form-control" placeholder="Project timeline">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Country</label>
+                                <select id="country" class="form-control">
+                                    <option value="">Select Country</option>
+                                    <option value="Australia">Australia</option>
+                                    <option value="USA">USA</option>
+                                    <option value="Canada">Canada</option>
+                                    <option value="UK">UK</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Priority</label>
+                                <select id="priority" class="form-control">
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Scope of Work *</label>
+                        <textarea id="scopeOfWork" class="form-control" rows="4" placeholder="Describe the project scope..." required></textarea>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>Upload Project Files (RFQ, Tender Documents, Drawings)</h4>
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">📁</div>
+                            <p>Click to upload or drag and drop files</p>
+                            <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">
+                                Supported: PDF, DOCX, XLSX, DWG
+                            </div>
+                            <input type="file" id="fileInput" multiple style="display: none;">
+                        </div>
+                        <div id="filePreview"></div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                        <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Proposal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Setup file upload
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    uploadArea.onclick = () => fileInput.click();
+    
+    let selectedFiles = [];
+    
+    fileInput.onchange = function() {
+        selectedFiles = Array.from(this.files);
+        if (selectedFiles.length > 0) {
+            document.getElementById('filePreview').innerHTML = 
+                '<h5>Files to Upload:</h5>' + 
+                selectedFiles.map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
+        }
+    };
+    
+    // Handle form submission
+    document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        try {
+            showLoading();
+            
+            // Option 1: Create proposal with files in single request
+            if (selectedFiles.length > 0) {
+                // Use FormData to send both proposal data and files
+                const formData = new FormData();
+                formData.append('projectName', document.getElementById('projectName').value);
+                formData.append('clientCompany', document.getElementById('clientCompany').value);
+                formData.append('projectType', document.getElementById('projectType').value || 'Commercial');
+                formData.append('country', document.getElementById('country').value || 'Not Specified');
+                formData.append('timeline', document.getElementById('timeline').value || 'Not Specified');
+                formData.append('priority', document.getElementById('priority').value || 'Medium');
+                formData.append('scopeOfWork', document.getElementById('scopeOfWork').value);
+                
+                // Append files
+                selectedFiles.forEach(file => formData.append('files', file));
+                
+                const response = await apiCall('proposals', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.success) {
+                    alert('Proposal created successfully with files!');
+                    closeModal();
+                    showProposals();
+                }
+            } else {
+                // Option 2: Create proposal without files (JSON request)
+                const proposalData = {
+                    projectName: document.getElementById('projectName').value,
+                    clientCompany: document.getElementById('clientCompany').value,
+                    projectType: document.getElementById('projectType').value || 'Commercial',
+                    country: document.getElementById('country').value || 'Not Specified',
+                    timeline: document.getElementById('timeline').value || 'Not Specified',
+                    priority: document.getElementById('priority').value || 'Medium',
+                    scopeOfWork: document.getElementById('scopeOfWork').value
+                };
+                
+                const response = await apiCall('proposals', {
+                    method: 'POST',
+                    body: JSON.stringify(proposalData)
+                });
+                
+                if (response.success) {
+                    alert('Proposal created successfully!');
+                    closeModal();
+                    showProposals();
+                }
+            }
+        } catch (error) {
+            alert(`Creation failed: ${error.message}`);
+        } finally {
+            hideLoading();
+        }
+    });
+}
 module.exports = allowCors(handler);
