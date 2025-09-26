@@ -409,7 +409,7 @@
         .status-pending-pricing { background: #fff3cd; color: #856404; }
         .status-pending-director-approval { background: #f0d0ff; color: #6f42c1; }
         .status-approved { background: #d4edda; color: #155724; }
-        .status-rejected { background: #f8d7da; color: #721c24; }
+        .status-rejected, .status-revision-required { background: #f8d7da; color: #721c24; }
         .status-submitted-to-client { background: #cce5ff; color: #0066cc; }
         
         /* Responsive design */
@@ -577,21 +577,15 @@
             const url = `${API_BASE}/api/${endpoint}`;
             const defaultOptions = { 
                 headers: { 
-                    'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${authToken}` 
                 } 
             };
-            if (options.body instanceof FormData) { 
-                delete defaultOptions.headers['Content-Type']; 
+            if (!(options.body instanceof FormData)) {
+                defaultOptions.headers['Content-Type'] = 'application/json';
             }
-            const finalOptions = { 
-                ...defaultOptions, 
-                ...options, 
-                headers: { 
-                    ...defaultOptions.headers, 
-                    ...options.headers 
-                } 
-            };
+
+            const finalOptions = { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } };
+            
             try {
                 const response = await fetch(url, finalOptions);
                 const responseText = await response.text();
@@ -766,29 +760,13 @@
         }
 
         function renderDashboard(data) {
-            const getActionBtnText = (type) => ({
-                'estimation_required': 'ENTER MANHOURS',
-                'pricing_required': 'SET PRICING', 
-                'approval_required': 'EXECUTIVE REVIEW',
-                'ready_for_client': 'SUBMIT TO CLIENT'
-            })[type] || 'View';
-
-            const getActionBtnClass = (type) => ({
-                'estimation_required': 'btn-primary',
-                'pricing_required': 'btn-warning', 
-                'approval_required': 'btn-danger',
-                'ready_for_client': 'btn-success'
-            })[type] || 'btn-outline';
-
-            // Stats section
-            const statsHtml = data.stats ? Object.entries(data.stats).map(([k, v]) => `
+             const statsHtml = data.stats ? Object.entries(data.stats).map(([k, v]) => `
                 <div class="stat-card">
                     <div class="stat-number">${v}</div>
                     <div class="stat-label">${k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
                 </div>
             `).join('') : '';
 
-            // Action items with enhanced styling based on role
             let actionsHtml = '';
             if (data.actionItems?.length) {
                 const badges = currentUserRole === 'estimator' ? ['Upload BOQ', 'Enter Manhours'] :
@@ -805,7 +783,7 @@
                         <div class="action-item">
                             <div class="action-content">
                                 <strong>${item.projectName}</strong>
-                                <div class="action-meta">Client: ${item.clientCompany}</div>
+                                <div class="action-meta">Client: ${item.clientCompany} | Status: ${item.status.replace(/_/g, ' ')}</div>
                             </div>
                             <div class="action-buttons">
                                 ${getActionButtons(item, currentUserRole)}
@@ -820,7 +798,6 @@
                 `;
             }
 
-            // Executive overview for directors
             let executiveHtml = '';
             if (currentUserRole === 'director' && data.executiveOverview) {
                 executiveHtml = `
@@ -838,7 +815,6 @@
                 `;
             }
 
-            // Recent activities
             const activitiesHtml = data.recentActivities?.length ? `
                 <div class="action-section">
                     <h3>Recent Activities</h3>
@@ -870,40 +846,22 @@
         }
 
         function getActionButtons(item, role) {
-            const baseBtn = `<button class="btn btn-outline btn-sm" onclick="viewProposal('${item.proposalId}')">VIEW</button>`;
-            
-            switch(role) {
-                case 'estimator':
-                    if (item.type === 'estimation_required') {
-                        return `
-                            <button class="btn btn-primary btn-sm" onclick="showEstimationModal('${item.proposalId}')">ENTER MANHOURS</button>
-                            <button class="btn btn-outline btn-sm" onclick="showServiceModal('${item.proposalId}')">SELECT SERVICES</button>
-                        `;
-                    }
+            let actionBtn = '';
+            switch(item.type) {
+                case 'estimation_required':
+                    if (role === 'estimator') actionBtn = `<button class="btn btn-primary btn-sm" onclick="showEstimationModal('${item.proposalId}')">ENTER MANHOURS</button>`;
                     break;
-                case 'coo':
-                    if (item.type === 'pricing_required') {
-                        return `
-                            <button class="btn btn-primary btn-sm" onclick="showPricingModal('${item.proposalId}')">EDIT PROJECT</button>
-                            <button class="btn btn-outline btn-sm" onclick="downloadReport('${item.proposalId}')">DOWNLOAD REPORT</button>
-                        `;
-                    }
+                case 'pricing_required':
+                    if (role === 'coo') actionBtn = `<button class="btn btn-primary btn-sm" onclick="showPricingModal('${item.proposalId}')">SET PRICING</button>`;
                     break;
-                case 'director':
-                    if (item.type === 'approval_required') {
-                        return `
-                            <button class="btn btn-primary btn-sm" onclick="showDirectorModal('${item.proposalId}')">EXECUTIVE REVIEW</button>
-                            <button class="btn btn-warning btn-sm" onclick="showOverrideModal('${item.proposalId}')">OVERRIDE SETTINGS</button>
-                        `;
-                    }
+                case 'approval_required':
+                    if (role === 'director') actionBtn = `<button class="btn btn-primary btn-sm" onclick="viewProposal('${item.proposalId}')">EXECUTIVE REVIEW</button>`;
                     break;
-                case 'bdm':
-                    if (item.type === 'ready_for_client') {
-                        return `<button class="btn btn-success btn-sm" onclick="submitToClient('${item.proposalId}')">SUBMIT TO CLIENT</button>`;
-                    }
-                    break;
+                case 'ready_for_client':
+                     if (role === 'bdm') actionBtn = `<button class="btn btn-success btn-sm" onclick="submitToClient('${item.proposalId}')">SUBMIT TO CLIENT</button>`;
+                     break;
             }
-            return baseBtn;
+            return `${actionBtn} <button class="btn btn-outline btn-sm" onclick="viewProposal('${item.proposalId}')">VIEW</button>`;
         }
 
         async function showProposals() {
@@ -928,24 +886,22 @@
 
         function renderProposals(proposals) {
             const createButton = currentUserRole === 'bdm' ? `
-                <button onclick="showCreateProposalModal()" class="btn btn-primary" style="margin-bottom: 2rem;">
+                <button onclick="showCreateProposalModal()" class="btn btn-primary" style="margin-bottom: 2rem; width: auto;">
                     Create New Proposal
                 </button>
             ` : '';
             
             const proposalsHtml = proposals?.length ? proposals.map(p => `
-                <div class="proposal-card" style="background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
-                    <div class="proposal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-                        <div>
-                            <div class="proposal-title" style="font-size: 1.2rem; font-weight: 600;">${p.projectName}</div>
-                            <div class="proposal-client" style="color: var(--text-light); font-size: 0.9rem;">${p.clientCompany}</div>
-                        </div>
-                        <div class="proposal-status status-${p.status.replace(/_/g, '-')}">${p.status.replace(/_/g, ' ')}</div>
+                <div class="action-item">
+                    <div class="action-content">
+                        <strong>${p.projectName}</strong>
+                        <div class="action-meta">Client: ${p.clientCompany} | Created: ${formatDate(p.createdAt)}</div>
                     </div>
-                    <div class="action-meta" style="margin-bottom: 1rem;">Created: ${formatDate(p.createdAt)}</div>
-                    <div style="margin-top: 1rem;">
+                    <div>
+                         <span class="proposal-status status-${p.status.replace(/_/g, '-')}">${p.status.replace(/_/g, ' ')}</span>
+                    </div>
+                    <div class="action-buttons">
                         <button onclick="viewProposal('${p.id}')" class="btn btn-outline btn-sm">View Details</button>
-                        ${currentUserRole === 'director' ? `<button onclick="downloadEstimation('${p.id}')" class="btn btn-primary btn-sm" style="margin-left: 1rem;">Download Estimation</button>` : ''}
                     </div>
                 </div>
             `).join('') : '<p>No proposals found.</p>';
@@ -956,67 +912,59 @@
                     <div class="subtitle">View and manage project proposals</div>
                 </div>
                 ${createButton}
-                <div class="proposals-grid" style="display: grid; gap: 1.5rem; margin-top: 2rem;">${proposalsHtml}</div>
+                <div class="proposals-list" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem;">${proposalsHtml}</div>
             `;
         }
-
-        async function viewProposal(proposalId) {
-            try {
-                const { success, data } = await apiCall(`proposals?id=${proposalId}`);
-                if (success && data) {
-                    renderProposalDetailModal(data);
-                } else {
-                    throw new Error('Invalid proposal response');
-                }
-            } catch (error) { 
-                alert(`Error fetching proposal: ${error.message}`); 
-            }
-        }
         
+        // =============================
+        // NEW AND UPDATED FUNCTIONS START HERE
+        // =============================
+        
+        // FIX 11: Create Proposal with File Upload
         function showCreateProposalModal() {
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
                 'Joist Detailing', 'As-built Drawings'
             ];
-            
+
             const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>Create New Proposal</h2>
-                            <div class="subtitle">Start a new project with file uploads and timeline management</div>
+                            <div class="subtitle">Start a new project with file uploads</div>
                         </div>
                         
                         <form id="createProposalForm" class="modal-form">
                             <div class="form-section">
-                                <h4>Project Information & File Upload</h4>
+                                <h4>Project Information</h4>
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label>Project Name</label>
+                                        <label>Project Name *</label>
                                         <input type="text" id="projectName" class="form-control" placeholder="Enter project name" required>
                                     </div>
                                     <div class="form-group">
-                                        <label>Client Company</label>
+                                        <label>Client Company *</label>
                                         <input type="text" id="clientCompany" class="form-control" placeholder="Enter client company" required>
                                     </div>
                                 </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Project Type</label>
-                                        <select id="projectType" class="form-control" required>
+                                        <select id="projectType" class="form-control">
                                             <option value="">Select Type</option>
                                             ${projectTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
                                         </select>
                                     </div>
                                     <div class="form-group">
                                         <label>Timeline (Days)</label>
-                                        <input type="text" id="timeline" class="form-control" placeholder="Enter project timeline">
+                                        <input type="text" id="timeline" class="form-control" placeholder="Project timeline">
                                     </div>
                                 </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Country</label>
-                                        <select id="country" class="form-control" required>
+                                        <select id="country" class="form-control">
                                             <option value="">Select Country</option>
                                             <option value="Australia">Australia</option>
                                             <option value="USA">USA</option>
@@ -1024,7 +972,20 @@
                                             <option value="UK">UK</option>
                                         </select>
                                     </div>
+                                    <div class="form-group">
+                                        <label>Priority</label>
+                                        <select id="priority" class="form-control">
+                                            <option value="Medium">Medium</option>
+                                            <option value="High">High</option>
+                                            <option value="Low">Low</option>
+                                        </select>
+                                    </div>
                                 </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Scope of Work *</label>
+                                <textarea id="scopeOfWork" class="form-control" rows="4" placeholder="Describe the project scope..." required></textarea>
                             </div>
                             
                             <div class="form-section">
@@ -1032,20 +993,17 @@
                                 <div class="upload-area" id="uploadArea">
                                     <div class="upload-icon">📁</div>
                                     <p>Click to upload or drag and drop files</p>
-                                    <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">Supported: PDF, DOCX, XLSX, DWG</div>
-                                    <input type="file" id="fileInput" multiple>
+                                    <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">
+                                        Supported: PDF, DOCX, XLSX, DWG
+                                    </div>
+                                    <input type="file" id="fileInput" multiple style="display: none;">
                                 </div>
                                 <div id="filePreview"></div>
                             </div>
                             
-                            <div class="form-group">
-                                <label>Scope of Work</label>
-                                <textarea id="scopeOfWork" class="form-control" rows="4" placeholder="Describe the project scope..." required></textarea>
-                            </div>
-                            
                             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                                 <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Submit for Estimation</button>
+                                <button type="submit" class="btn btn-primary">Create Proposal</button>
                             </div>
                         </form>
                     </div>
@@ -1054,70 +1012,101 @@
             
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             
-            // File upload handling
+            // Setup file upload
             const uploadArea = document.getElementById('uploadArea');
             const fileInput = document.getElementById('fileInput');
             uploadArea.onclick = () => fileInput.click();
-            fileInput.onchange = () => previewFiles(fileInput.files);
             
-            // Drag and drop
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => {
-                uploadArea.addEventListener(eName, e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-            });
-            ['dragenter', 'dragover'].forEach(eName => 
-                uploadArea.addEventListener(eName, () => uploadArea.classList.add('dragover'))
-            );
-            ['dragleave', 'drop'].forEach(eName => 
-                uploadArea.addEventListener(eName, () => uploadArea.classList.remove('dragover'))
-            );
-            uploadArea.addEventListener('drop', e => previewFiles(e.dataTransfer.files));
+            let selectedFiles = [];
+
+            fileInput.onchange = function() {
+                selectedFiles = Array.from(this.files);
+                if (selectedFiles.length > 0) {
+                    document.getElementById('filePreview').innerHTML = 
+                        '<h5>Files to Upload:</h5>' + 
+                        selectedFiles.map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
+                }
+            };
             
+            // Handle form submission
             document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const formData = { 
-                    projectName: document.getElementById('projectName').value, 
+                
+                const formData = {
+                    projectName: document.getElementById('projectName').value,
                     clientCompany: document.getElementById('clientCompany').value,
                     projectType: document.getElementById('projectType').value,
-                    country: document.getElementById('country').value, 
-                    timeline: document.getElementById('timeline').value, 
-                    scopeOfWork: document.getElementById('scopeOfWork').value 
+                    country: document.getElementById('country').value,
+                    timeline: document.getElementById('timeline').value,
+                    priority: document.getElementById('priority').value,
+                    scopeOfWork: document.getElementById('scopeOfWork').value
                 };
+                
                 try {
-                    const { success } = await apiCall('proposals', { 
-                        method: 'POST', 
-                        body: JSON.stringify(formData) 
+                    showLoading();
+                    
+                    // Create the proposal first
+                    const response = await apiCall('proposals', {
+                        method: 'POST',
+                        body: JSON.stringify(formData)
                     });
-                    if (success) { 
-                        closeModal(); 
-                        showProposals(); 
+                    
+                    if (response.success && response.data) {
+                        const proposalId = response.data.id;
+                        
+                        // Upload files if any
+                        if (selectedFiles.length > 0) {
+                            const fileFormData = new FormData();
+                            selectedFiles.forEach(file => fileFormData.append('files', file));
+                            fileFormData.append('proposalId', proposalId);
+                            fileFormData.append('fileType', 'project');
+                            
+                            await apiCall('files', {
+                                method: 'POST',
+                                body: fileFormData
+                            });
+                        }
+                        
+                        alert('Proposal created successfully!');
+                        closeModal();
+                        showProposals();
                     }
-                } catch (error) { 
-                    alert(`Creation failed: ${error.message}`); 
+                } catch (error) {
+                    alert(`Creation failed: ${error.message}`);
+                } finally {
+                    hideLoading();
                 }
             });
         }
-
-        function previewFiles(files) {
-            const preview = document.getElementById('filePreview');
-            if (files.length > 0) {
-                preview.innerHTML = '<h4>Files to Upload:</h4>' + 
-                    Array.from(files).map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
+        
+        // FIX 5: View Proposal with working file display
+        async function viewProposal(proposalId) {
+            try {
+                showLoading();
+                const { success, data } = await apiCall(`proposals?id=${proposalId}`);
+                if (success && data) {
+                    // Also load files for this proposal
+                    const filesResponse = await apiCall(`files?proposalId=${proposalId}`);
+                    const files = filesResponse.success ? filesResponse.data : [];
+                    
+                    renderProposalDetailModal(data, files);
+                } else {
+                    throw new Error('Failed to load proposal');
+                }
+            } catch (error) {
+                alert(`Error fetching proposal: ${error.message}`);
+            } finally {
+                hideLoading();
             }
         }
 
-        function renderProposalDetailModal(p) {
-            const renderObj = (obj) => obj ? `
-                <pre style="white-space: pre-wrap; word-break: break-all; background: #f4f4f4; padding: 15px; border-radius: 8px; font-size: 0.9rem;">
-                    ${JSON.stringify(obj, null, 2)}
-                </pre>
-            ` : '<p style="color: var(--text-light); font-style: italic;">Not available</p>';
+        // FIX 6: Render proposal detail modal with files
+        function renderProposalDetailModal(p, files = []) {
+            const projectFiles = files.filter(f => !f.fileType || f.fileType === 'project');
+            const estimationFiles = files.filter(f => f.fileType === 'estimation');
 
             let actionsHtml = '';
-            let downloadSection = '';
-
+            
             // Role-based actions
             if (currentUserRole === 'estimator' && p.status === 'pending_estimation') {
                 actionsHtml = `<button class="btn btn-primary" onclick="showEstimationModal('${p.id}')">Add Estimation</button>`;
@@ -1132,21 +1121,10 @@
                 actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${p.id}')">Submit to Client</button>`;
             }
 
-            // Download section based on role and proposal status
-            if (['director', 'coo'].includes(currentUserRole)) {
-                downloadSection = `
-                    <button class="btn btn-primary" onclick="downloadProjectFiles('${p.id}')">Download DWG Files</button>
-                    <button class="btn btn-success" onclick="downloadEstimationFiles('${p.id}')">Download Estimation Files</button>
-                `;
-            } else if (currentUserRole === 'bdm' && ['approved', 'submitted_to_client'].includes(p.status)) {
-                downloadSection = `
-                    <button class="btn btn-primary" onclick="downloadProjectFiles('${p.id}')">Download DWG Files</button>
-                    <button class="btn btn-success" onclick="downloadEstimationFiles('${p.id}')">Download Estimation Files</button>
-                `;
-            } else if (currentUserRole === 'estimator') {
-                downloadSection = `<button class="btn btn-outline" onclick="downloadProjectFiles('${p.id}')">Download DWG Files</button>`;
+            // BDM delete button
+            if (currentUserRole === 'bdm' && p.createdByUid === currentUser.uid) {
+                actionsHtml += ` <button class="btn btn-danger btn-sm" onclick="deleteProposal('${p.id}')">Delete Proposal</button>`;
             }
-
             const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content" style="max-width: 1000px;">
@@ -1154,47 +1132,84 @@
                             <h2>${p.projectName}</h2>
                             <div class="subtitle">${p.clientCompany}</div>
                         </div>
-
                         <div style="margin-bottom: 2rem;">
                             <strong>Status:</strong> 
                             <span class="proposal-status status-${p.status.replace(/_/g, '-')}">
                                 ${p.status.replace(/_/g, ' ').toUpperCase()}
                             </span>
                         </div>
-
                         <div style="display: grid; gap: 2rem;">
                             <div class="form-section">
                                 <h4>Project Details</h4>
-                                <p><strong>Scope of Work:</strong></p>
-                                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
-                                    ${p.scopeOfWork}
-                                </div>
+                                <p><strong>Scope of Work:</strong> ${p.scopeOfWork}</p>
+                                <p><strong>Timeline:</strong> ${p.timeline || 'Not specified'}</p>
+                                <p><strong>Country:</strong> ${p.country || 'Not specified'}</p>
+                                <p><strong>Created by:</strong> ${p.createdByName} on ${formatDate(p.createdAt)}</p>
                             </div>
-
                             <div class="form-section">
                                 <h4>Project Files</h4>
-                                <div id="modalProjectFiles">Loading files...</div>
+                                ${projectFiles.length ? projectFiles.map(file => `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border-radius: 5px; margin-bottom: 0.5rem; border: 1px solid var(--border);">
+                                        <span>📄 ${file.originalName}</span>
+                                        <div>
+                                            <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">View</button>
+                                            <button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">Download</button>
+                                        </div>
+                                    </div>
+                                `).join('') : '<p>No project files uploaded yet.</p>'}
                             </div>
-
-                            <div class="form-section">
-                                <h4>Estimation Details</h4>
-                                ${renderObj(p.estimation)}
-                            </div>
+                            ${p.estimation ? `
+                                <div class="form-section">
+                                    <h4>Estimation Details</h4>
+                                    <p><strong>Total Hours:</strong> ${p.estimation.totalHours}</p>
+                                    <p><strong>Design Hours:</strong> ${p.estimation.designHours || 0}</p>
+                                    <p><strong>Detailing Hours:</strong> ${p.estimation.detailingHours || 0}</p>
+                                    <p><strong>Checking Hours:</strong> ${p.estimation.checkingHours || 0}</p>
+                                    <p><strong>Services:</strong> ${p.estimation.services?.join(', ') || 'None selected'}</p>
+                                    <p><strong>Quote Type:</strong> ${p.estimation.quoteType || 'Not specified'}</p>
+                                    <p><strong>Estimated By:</strong> ${p.estimation.estimatedBy}</p>
+                                </div>
+                            ` : '<div class="form-section"><h4>Estimation Details</h4><p>Not available</p></div>'}
                             
-                            <div class="form-section">
-                                <h4>Pricing Information</h4>
-                                ${renderObj(p.pricing)}
-                            </div>
+                            ${estimationFiles.length ? `
+                                <div class="form-section">
+                                    <h4>Estimation Files</h4>
+                                    ${estimationFiles.map(file => `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border-radius: 5px; margin-bottom: 0.5rem; border: 1px solid var(--border);">
+                                            <span>📊 ${file.originalName}</span>
+                                            <div>
+                                                ${(currentUserRole === 'bdm' && p.status === 'approved') || currentUserRole !== 'bdm' ? `
+                                                    <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">View</button>
+                                                    <button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">Download</button>
+                                                ` : '<span style="color: #666; font-size: 0.9rem;">Awaiting approval</span>'}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
                             
-                            <div class="form-section">
-                                <h4>Director Approval</h4>
-                                ${renderObj(p.directorApproval)}
-                            </div>
+                            ${p.pricing ? `
+                                <div class="form-section">
+                                    <h4>Pricing Information</h4>
+                                    <p><strong>Quote Value:</strong> ${p.pricing.quoteValue} ${p.pricing.currency || ''}</p>
+                                    <p><strong>Profit Margin:</strong> ${p.pricing.profitMargin}%</p>
+                                    <p><strong>Hourly Rate:</strong> ${p.pricing.hourlyRate || 'Not specified'}</p>
+                                    <p><strong>Priced By:</strong> ${p.pricing.pricedBy}</p>
+                                </div>
+                            ` : ''}
+                                                
+                            ${p.directorApproval ? `
+                                <div class="form-section">
+                                    <h4>Director Approval</h4>
+                                    <p><strong>Status:</strong> ${p.directorApproval.approved ? 'Approved' : 'Rejected'}</p>
+                                    ${p.directorApproval.comments ? `<p><strong>Comments:</strong> ${p.directorApproval.comments}</p>` : ''}
+                                    <p><strong>By:</strong> ${p.directorApproval.approvedBy || p.directorApproval.rejectedBy}</p>
+                                </div>
+                            ` : ''}
                         </div>
                         
-                        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+                        <div style="display: flex; gap: 1rem; justify-content: flex-end; align-items: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
                             <button onclick="closeModal()" class="btn btn-outline">Close</button>
-                            ${downloadSection}
                             ${actionsHtml}
                         </div>
                     </div>
@@ -1202,26 +1217,104 @@
             `;
             
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-            // Load files for this proposal in the modal
-            loadProjectFiles(p.id).then(() => {
-                // Update the modal files view
-                const modalFilesDiv = document.getElementById('modalProjectFiles');
-                if (modalFilesDiv) {
-                    loadModalProjectFiles(p.id);
-                }
-            });
         }
 
+        // FIX 1: Estimator Manhours Saving and Services Selection (Unified Modal)
         function showEstimationModal(id) {
             closeModal();
             const modalHtml = `
                 <div class="modal-overlay">
-                    <div class="modal-content">
+                    <div class="modal-content" style="max-width: 1000px;">
                         <div class="modal-header">
                             <h2>Manhour Entry & Estimation</h2>
                         </div>
                         <form id="estimationForm" class="modal-form">
+                            <div class="form-section">
+                                <h4>View Project Files (DWG, RFQ, etc.)</h4>
+                                <div id="projectFilesView">Loading project files...</div>
+                            </div>
+                            <div class="form-section">
+                                <h4>Manhour Breakdown</h4>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                    <div class="form-group">
+                                        <label>Design Hours</label>
+                                        <input type="number" id="designHours" class="form-control" placeholder="0" value="0" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Detailing Hours</label>
+                                        <input type="number" id="detailingHours" class="form-control" placeholder="0" value="0" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Checking Hours</label>
+                                        <input type="number" id="checkingHours" class="form-control" placeholder="0" value="0" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Revision Hours</label>
+                                        <input type="number" id="revisionHours" class="form-control" placeholder="0" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Project Management</label>
+                                        <input type="number" id="pmHours" class="form-control" placeholder="0" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Total Hours</label>
+                                        <input type="number" id="totalHours" class="form-control" readonly style="background: var(--light-blue);" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-section">
+                                <h4>Select Services</h4>
+                                <div class="service-grid">
+                                    <label class="service-item">
+                                        <input type="checkbox" name="services" value="Steel Detailing">
+                                        <span>Steel Detailing</span>
+                                    </label>
+                                    <label class="service-item">
+                                        <input type="checkbox" name="services" value="Miscellaneous Steel Detailing">
+                                        <span>Miscellaneous Steel Detailing</span>
+                                    </label>
+                                    <label class="service-item">
+                                        <input type="checkbox" name="services" value="Connection Design">
+                                        <span>Connection Design</span>
+                                    </label>
+                                    <label class="service-item">
+                                        <input type="checkbox" name="services" value="PE Stamping">
+                                        <span>PE Stamping</span>
+                                    </label>
+                                    <label class="service-item">
+                                        <input type="checkbox" name="services" value="Joist Detailing">
+                                        <span>Joist Detailing</span>
+                                    </label>
+                                    <label class="service-item">
+                                        <input type="checkbox" name="services" value="As-built Drawings">
+                                        <span>As-built Drawings</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-section">
+                                <h4>Quote Details</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Quote Type</label>
+                                        <select id="quoteType" class="form-control">
+                                            <option value="Lump Sum">Lump Sum</option>
+                                            <option value="Per Hour">Per Hour</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Delivery Method</label>
+                                        <select id="deliveryMethod" class="form-control">
+                                            <option value="Email Delivery">Email Delivery</option>
+                                            <option value="Cloud Storage">Cloud Storage</option>
+                                            <option value="Physical Media">Physical Media</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Notes</label>
+                                    <textarea id="estimationNotes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
+                                </div>
+                            </div>
                             <div class="form-section">
                                 <h4>Upload BOQ & Calculation Files</h4>
                                 <div class="upload-area" id="boqUploadArea" onclick="document.getElementById('boqFileInput').click()">
@@ -1231,46 +1324,9 @@
                                 </div>
                                 <div id="boqFilePreview"></div>
                             </div>
-
-                            <div class="form-section">
-                                <h4>View Project Files (DWG, RFQ, etc.)</h4>
-                                <div id="projectFilesView">Loading project files...</div>
-                            </div>
-
-                            <div class="form-section">
-                                <h4>Manhour Breakdown</h4>
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-                                    <div class="form-group">
-                                        <label>Design Hours</label>
-                                        <input type="number" id="designHours" class="form-control" placeholder="80" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Detailing Hours</label>
-                                        <input type="number" id="detailingHours" class="form-control" placeholder="160" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Checking Hours</label>
-                                        <input type="number" id="checkingHours" class="form-control" placeholder="40" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Revision Hours</label>
-                                        <input type="number" id="revisionHours" class="form-control" placeholder="20">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Project Management</label>
-                                        <input type="number" id="pmHours" class="form-control" placeholder="32">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Total Hours</label>
-                                        <input type="number" id="totalHours" class="form-control" readonly style="background: var(--light-blue);">
-                                    </div>
-                                </div>
-                            </div>
-
                             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                                 <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="button" onclick="uploadEstimationFiles('${id}')" class="btn btn-warning">Upload Estimation Files</button>
-                                <button type="button" onclick="showServiceModal('${id}')" class="btn btn-success">Next: Select Services</button>
+                                <button type="button" onclick="saveEstimation('${id}')" class="btn btn-success">Save Estimation</button>
                             </div>
                         </form>
                     </div>
@@ -1278,10 +1334,10 @@
             `;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             
-            // Load project files for this proposal
+            // Load project files
             loadProjectFiles(id);
-
-            // File upload preview for BOQ files
+            
+            // Setup file upload preview
             document.getElementById('boqFileInput').addEventListener('change', function() {
                 const files = this.files;
                 if (files.length > 0) {
@@ -1290,7 +1346,7 @@
                         Array.from(files).map(f => `<p>📄 ${f.name}</p>`).join('');
                 }
             });
-
+            
             // Auto-calculate total hours
             const hourInputs = ['designHours', 'detailingHours', 'checkingHours', 'revisionHours', 'pmHours'];
             hourInputs.forEach(id => {
@@ -1301,56 +1357,112 @@
                     document.getElementById('totalHours').value = total;
                 });
             });
+            
+            // Service checkboxes visual feedback
+            document.querySelectorAll('.service-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        const checkbox = this.querySelector('input[type="checkbox"]');
+                        checkbox.checked = !checkbox.checked;
+                    }
+                    this.classList.toggle('checked', this.querySelector('input[type="checkbox"]').checked);
+                });
+            });
         }
-        
-        async function uploadEstimationFiles(proposalId) {
-            const fileInput = document.getElementById('boqFileInput');
-            const files = fileInput.files;
 
-            if (files.length === 0) {
-                alert('Please select files to upload first.');
+        // FIX 2: Save Estimation with proper data collection
+        async function saveEstimation(proposalId) {
+            const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(cb => cb.value);
+            
+            // Collect all hour values
+            const designHours = document.getElementById('designHours').value || 0;
+            const detailingHours = document.getElementById('detailingHours').value || 0;
+            const checkingHours = document.getElementById('checkingHours').value || 0;
+            const revisionHours = document.getElementById('revisionHours').value || 0;
+            const pmHours = document.getElementById('pmHours').value || 0;
+            const totalHours = document.getElementById('totalHours').value || 0;
+            
+            // Validate input
+            if (totalHours == 0) {
+                alert('Please enter manhours before saving.');
                 return;
             }
-
-            const formData = new FormData();
-            Array.from(files).forEach(file => formData.append('files', file));
-            formData.append('proposalId', proposalId);
-            formData.append('fileType', 'estimation'); // Mark as estimation files
-
+            
+            if (services.length === 0) {
+                alert('Please select at least one service.');
+                return;
+            }
+            
+            const estimationData = {
+                designHours,
+                detailingHours,
+                checkingHours,
+                revisionHours,
+                pmHours,
+                totalHours,
+                services,
+                quoteType: document.getElementById('quoteType').value,
+                deliveryMethod: document.getElementById('deliveryMethod').value,
+                notes: document.getElementById('estimationNotes')?.value || 'Estimation completed'
+            };
+            
             try {
                 showLoading();
-                const { success } = await apiCall('files', { method: 'POST', body: formData });
-                if (success) {
-                    alert('Estimation files uploaded successfully!');
-                    // Refresh the file view
-                    loadProjectFiles(proposalId);
+                
+                // First upload BOQ files if any
+                const fileInput = document.getElementById('boqFileInput');
+                if (fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    Array.from(fileInput.files).forEach(file => formData.append('files', file));
+                    formData.append('proposalId', proposalId);
+                    formData.append('fileType', 'estimation');
+                    
+                    await apiCall('files', { method: 'POST', body: formData });
+                }
+                
+                // Save estimation data
+                const response = await apiCall(`proposals?id=${proposalId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        action: 'add_estimation',
+                        data: estimationData
+                    })
+                });
+                
+                if (response.success) {
+                    alert('Estimation saved successfully!');
+                    closeModal();
+                    showDashboard();
                 }
             } catch (error) {
-                alert(`Upload failed: ${error.message}`);
+                alert('Error saving estimation: ' + error.message);
             } finally {
                 hideLoading();
             }
         }
 
+        // FIX 3: Load and display project files correctly
         async function loadProjectFiles(proposalId) {
             try {
                 const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
                 if (success && data) {
-                    const filesHtml = data.length ? data.map(file => `
-                        <div class="action-item" style="margin-bottom: 1rem;">
+                    const projectFiles = data.filter(f => !f.fileType || f.fileType === 'project');
+                    const filesHtml = projectFiles.length ? projectFiles.map(file => `
+                        <div class="action-item" style="margin-bottom: 1rem; padding: 1rem;">
                             <div class="action-content">
                                 <strong>📄 ${file.originalName}</strong>
                                 <div class="action-meta">
-                                    Type: ${file.fileType || 'Project File'} | 
+                                    Type: ${file.mimeType} | 
                                     Size: ${(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
                                     Uploaded by: ${file.uploadedByName}
                                 </div>
                             </div>
                             <div class="action-buttons">
-                                ${canDownloadFile(file) ? `<button class="btn btn-primary btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW/DOWNLOAD</button>` : '<span style="color: #666;">Access Restricted</span>'}
+                                <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW</button>
+                                <button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">DOWNLOAD</button>
                             </div>
                         </div>
-                    `).join('') : '<p>No files found for this project.</p>';
+                    `).join('') : '<p>No project files available.</p>';
                     
                     const projectFilesView = document.getElementById('projectFilesView');
                     if (projectFilesView) {
@@ -1358,414 +1470,198 @@
                     }
                 }
             } catch (error) {
-                 const projectFilesView = document.getElementById('projectFilesView');
-                 if(projectFilesView) {
+                const projectFilesView = document.getElementById('projectFilesView');
+                if (projectFilesView) {
                     projectFilesView.innerHTML = `<p class="error-message">Error loading files: ${error.message}</p>`;
-                 }
-            }
-        }
-
-        function canDownloadFile(file) {
-            // BDM can download all files
-            if (currentUserRole === 'bdm') return true;
-            // Director can download all files
-            if (currentUserRole === 'director') return true;
-            // COO can download all files
-            if (currentUserRole === 'coo') return true;
-            // Estimator can download project files (DWG, RFQ) but not other estimation files unless they uploaded them
-            if (currentUserRole === 'estimator') {
-                return !file.fileType || file.fileType === 'project' || file.uploadedByUid === currentUser.uid;
-            }
-            return false;
-        }
-
-        async function downloadProjectFiles(proposalId) {
-            try {
-                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
-                if (success && data) {
-                    const projectFiles = data.filter(file => !file.fileType || file.fileType === 'project');
-                    if (projectFiles.length > 0) {
-                        // Create download links for all project files
-                        projectFiles.forEach(file => {
-                            const link = document.createElement('a');
-                            link.href = file.url;
-                            link.download = file.originalName;
-                            link.target = '_blank';
-                            link.click();
-                        });
-                        alert(`Downloaded ${projectFiles.length} project file(s)`);
-                    } else {
-                        alert('No project files found');
-                    }
-                }
-            } catch (error) {
-                alert('Error downloading files: ' + error.message);
-            }
-        }
-
-        async function downloadEstimationFiles(proposalId) {
-            try {
-                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
-                if (success && data) {
-                    const estimationFiles = data.filter(file => file.fileType === 'estimation');
-                    if (estimationFiles.length > 0) {
-                        // Create download links for all estimation files
-                        estimationFiles.forEach(file => {
-                            const link = document.createElement('a');
-                            link.href = file.url;
-                            link.download = file.originalName;
-                            link.target = '_blank';
-                            link.click();
-                        });
-                        alert(`Downloaded ${estimationFiles.length} estimation file(s)`);
-                    } else {
-                        alert('No estimation files found');
-                    }
-                }
-            } catch (error) {
-                alert('Error downloading estimation files: ' + error.message);
-            }
-        }
-
-        async function loadModalProjectFiles(proposalId) {
-            try {
-                const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
-                if (success && data) {
-                    const modalFilesDiv = document.getElementById('modalProjectFiles');
-                    if (modalFilesDiv) {
-                        const filesHtml = data.length ? data.map(file => `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f8fafc; border-radius: 5px; margin-bottom: 0.5rem;">
-                                <span>📄 ${file.originalName} (${file.fileType || 'Project'})</span>
-                                ${canDownloadFile(file) ? `<button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">Download</button>` : '<span style="color: #666; font-size: 0.8rem;">Access Restricted</span>'}
-                            </div>
-                        `).join('') : '<p>No files found for this project.</p>';
-
-                        modalFilesDiv.innerHTML = filesHtml;
-                    }
-                }
-            } catch (error) {
-                const modalFilesDiv = document.getElementById('modalProjectFiles');
-                if (modalFilesDiv) {
-                    modalFilesDiv.innerHTML = `<p class="error-message">Error loading files: ${error.message}</p>`;
                 }
             }
         }
 
-
-        function showServiceModal(id) {
-            closeModal();
-            const services = [
-                'Steel Detailing', 'Miscellaneous Steel Detailing', 'Connection Design', 
-                'PE Stamping', 'Joist Detailing', 'As-built Drawings'
-            ];
-            
-            const modalHtml = `
-                <div class="modal-overlay">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2>Service Selection Checklist</h2>
-                        </div>
-                        
-                        <form id="serviceForm" class="modal-form">
-                            <div class="form-section">
-                                 <h4>Select EDANBROOK Services Required</h4>
-                                <div class="service-grid">
-                                    ${services.map(service => `
-                                        <div class="service-item" onclick="toggleService(this)">
-                                            <input type="checkbox" name="services" value="${service}">
-                                            <span>${service}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                            
-                            <div class="form-section">
-                                <h4>Quote Type Selection</h4>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Quote Type</label>
-                                        <select id="quoteType" class="form-control" required>
-                                            <option value="Lump Sum">Lump Sum</option>
-                                            <option value="Per Hour">Per Hour</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Delivery Method</label>
-                                        <select id="deliveryMethod" class="form-control" required>
-                                            <option value="Email Delivery">Email Delivery</option>
-                                            <option value="Cloud Storage">Cloud Storage</option>
-                                            <option value="Physical Media">Physical Media</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="button" onclick="completeEstimation('${id}')" class="btn btn-success">Complete Estimation</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        // FIX 4: Download file function
+        function downloadFile(url, filename) {
+            // Create an anchor element and trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
-        function toggleService(element) {
-            const checkbox = element.querySelector('input[type="checkbox"]');
-            checkbox.checked = !checkbox.checked;
-            element.classList.toggle('checked', checkbox.checked);
-        }
-
-        async function completeEstimation(id) {
-            const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(cb => cb.value);
-            const quoteType = document.getElementById('quoteType').value;
-            const deliveryMethod = document.getElementById('deliveryMethod').value;
-            
-            const data = {
-                totalHours: document.getElementById('totalHours')?.value || 0,
-                services,
-                quoteType,
-                deliveryMethod,
-                notes: 'Estimation completed via enhanced workflow'
-            };
-            
-            await handleProposalAction(id, 'add_estimation', data, 'Estimation completed successfully!');
-        }
-
-        // COO Enhanced Project Editor
+        // FIX 8: COO Pricing Modal with Edit Services
         function showPricingModal(id) {
             closeModal();
-            const modalHtml = `
-                <div class="modal-overlay">
-                    <div class="modal-content" style="max-width: 1200px;">
-                        <div class="modal-header">
-                            <h2>Project Editor - COO Full Access</h2>
+            
+            // First, load the proposal to get current estimation data
+            apiCall(`proposals?id=${id}`).then(response => {
+                const proposal = response.data;
+                const estimation = proposal.estimation || {};
+                
+                const modalHtml = `
+                    <div class="modal-overlay">
+                        <div class="modal-content" style="max-width: 1200px;">
+                            <div class="modal-header">
+                                <h2>Project Editor - COO Full Access</h2>
+                                <div class="subtitle">${proposal.projectName} - ${proposal.clientCompany}</div>
+                            </div>
+                            
+                            <form id="pricingForm" class="modal-form">
+                                <div class="form-section">
+                                    <h4>Current Estimation Summary</h4>
+                                    <p><strong>Total Hours:</strong> ${estimation.totalHours || 'Not set'}</p>
+                                    <p><strong>Services:</strong> ${estimation.services?.join(', ') || 'None selected'}</p>
+                                    <p><strong>Estimated By:</strong> ${estimation.estimatedBy || 'Not available'}</p>
+                                </div>
+                                
+                                <div class="form-section">
+                                    <h4>Edit Services</h4>
+                                    <div class="service-grid">
+                                        ${['Steel Detailing', 'Miscellaneous Steel Detailing', 'Connection Design', 'PE Stamping', 'Joist Detailing', 'As-built Drawings'].map(service => `
+                                            <label class="service-item ${estimation.services?.includes(service) ? 'checked' : ''}">
+                                                <input type="checkbox" name="editServices" value="${service}" ${estimation.services?.includes(service) ? 'checked' : ''}>
+                                                <span>${service}</span>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                
+                                <div class="form-section">
+                                    <h4>Pricing Details</h4>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Hourly Rate ($)</label>
+                                            <input type="number" id="hourlyRate" class="form-control" placeholder="85.00" step="0.01" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Profit Margin (%)</label>
+                                            <input type="number" id="profitMargin" class="form-control" placeholder="25.0" step="0.1" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Final Quote Value ($)</label>
+                                            <input type="number" id="quoteValue" class="form-control" placeholder="0.00" step="0.01" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Currency</label>
+                                            <select id="currency" class="form-control">
+                                                <option value="USD">USD</option>
+                                                <option value="AUD">AUD</option>
+                                                <option value="CAD">CAD</option>
+                                                <option value="EUR">EUR</option>
+                                                <option value="GBP">GBP</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-section">
+                                    <h4>Download Reports</h4>
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                        <button type="button" class="btn btn-outline" onclick="downloadEstimationReport('${id}')">Estimation Report</button>
+                                        <button type="button" class="btn btn-outline" onclick="downloadBOMReport('${id}')">BOM Report</button>
+                                        <button type="button" class="btn btn-outline" onclick="downloadCostAnalysis('${id}')">Cost Analysis</button>
+                                    </div>
+                                </div>
+                                
+                                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                                    <button type="button" onclick="savePricing('${id}')" class="btn btn-primary">Save & Send to Director</button>
+                                </div>
+                            </form>
                         </div>
-                        
-                        <form id="pricingForm" class="modal-form">
-                            <div class="form-section">
-                                <h4>Edit Project Details</h4>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Project Name</label>
-                                        <input type="text" id="editProjectName" class="form-control" placeholder="Commercial Building HVAC">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Timeline (Days)</label>
-                                        <input type="number" id="editTimeline" class="form-control" placeholder="60">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-section">
-                                <h4>Edit Manhours</h4>
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-                                    <div class="form-group">
-                                        <label>Design Hours</label>
-                                        <input type="number" id="editDesignHours" class="form-control" placeholder="75">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Installation Hours</label>
-                                        <input type="number" id="editInstallationHours" class="form-control" placeholder="150">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Testing Hours</label>
-                                        <input type="number" id="editTestingHours" class="form-control" placeholder="35">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-section">
-                                <h4>Edit Services</h4>
-                                <div class="service-grid">
-                                    <div class="service-item checked">
-                                        <input type="checkbox" checked name="editServices" value="Steel Detailing">
-                                        <span>Steel Detailing</span>
-                                    </div>
-                                    <div class="service-item">
-                                        <input type="checkbox" name="editServices" value="Miscellaneous Steel Detailing">
-                                        <span>Miscellaneous Steel Detailing</span>
-                                    </div>
-                                    <div class="service-item">
-                                        <input type="checkbox" name="editServices" value="Connection Design">
-                                        <span>Connection Design</span>
-                                    </div>
-                                    <div class="service-item">
-                                        <input type="checkbox" name="editServices" value="PE Stamping">
-                                        <span>PE Stamping</span>
-                                    </div>
-                                    <div class="service-item">
-                                        <input type="checkbox" name="editServices" value="Joist Detailing">
-                                        <span>Joist Detailing</span>
-                                    </div>
-                                    <div class="service-item">
-                                        <input type="checkbox" name="editServices" value="As-built Drawings">
-                                        <span>As-built Drawings</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-section">
-                                <h4>Pricing Details</h4>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Hourly Rate</label>
-                                        <input type="number" id="hourlyRate" class="form-control" placeholder="85.00" step="0.01" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Profit Margin (%)</label>
-                                        <input type="number" id="profitMargin" class="form-control" placeholder="25.0" step="0.1" required>
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Final Quote Value</label>
-                                        <input type="number" id="quoteValue" class="form-control" placeholder="28500.00" step="0.01" required>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="button" onclick="savePricing('${id}')" class="btn btn-primary">Save Changes</button>
-                                <button type="button" onclick="downloadReport('${id}')" class="btn btn-success">Download Report</button>
-                            </div>
-                        </form>
                     </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            
-            // Add click handlers for service items
-            document.querySelectorAll('.service-item').forEach(item => {
-                item.addEventListener('click', () => toggleService(item));
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Add auto-calculation for quote value
+                document.getElementById('hourlyRate')?.addEventListener('input', calculateQuote);
+                document.getElementById('profitMargin')?.addEventListener('input', calculateQuote);
+
+                function calculateQuote() {
+                    const rate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+                    const margin = parseFloat(document.getElementById('profitMargin').value) || 0;
+                    const hours = estimation.totalHours || 0;
+                    const baseValue = rate * hours;
+                    const quoteValue = baseValue * (1 + margin / 100);
+                    document.getElementById('quoteValue').value = quoteValue.toFixed(2);
+                }
+                
+                // Setup service checkbox interactions
+                document.querySelectorAll('.service-item').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        if (e.target.tagName !== 'INPUT') {
+                            const checkbox = this.querySelector('input[type="checkbox"]');
+                            checkbox.checked = !checkbox.checked;
+                        }
+                        this.classList.toggle('checked', this.querySelector('input[type="checkbox"]').checked);
+                    });
+                });
             });
         }
-
+        
+        // FIX 9: Save pricing with updated services
         async function savePricing(id) {
+            const services = Array.from(document.querySelectorAll('input[name="editServices"]:checked')).map(cb => cb.value);
+            
             const data = {
                 hourlyRate: document.getElementById('hourlyRate').value,
                 profitMargin: document.getElementById('profitMargin').value,
-                quoteValue: document.getElementById('quoteValue').value
+                quoteValue: document.getElementById('quoteValue').value,
+                currency: document.getElementById('currency').value,
+                updatedServices: services // COO can update services
             };
-            await handleProposalAction(id, 'set_pricing', data, 'Pricing updated successfully!');
-        }
-
-        async function downloadReport(id) {
-            // Simulate report download
-            alert('Report downloaded successfully!');
-        }
-
-        // Director Executive Review Modal
-        function showDirectorModal(id) {
-            closeModal();
-            const modalHtml = `
-                <div class="modal-overlay">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2>Executive Director - Strategic Overview</h2>
-                        </div>
-                        
-                        <div class="form-section">
-                            <h4>Project Dashboard Overview</h4>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
-                                <div style="background: #e3f2fd; padding: 1.5rem; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 2rem; font-weight: bold; color: #1976d2;">6</div>
-                                    <div style="color: #666;">Timeline Delays</div>
-                                </div>
-                                <div style="background: #e8f5e8; padding: 1.5rem; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 2rem; font-weight: bold; color: #388e3c;">15</div>
-                                    <div style="color: #666;">Projects On Track</div>
-                                </div>
-                                <div style="background: #fff3e0; padding: 1.5rem; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 2rem; font-weight: bold; color: #f57c00;">3</div>
-                                    <div style="color: #666;">Require Attention</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-section">
-                            <h4>Download Strategic Reports</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <button class="btn btn-primary" onclick="downloadStrategicReport('executive')">Executive Summary</button>
-                                <button class="btn btn-primary" onclick="downloadStrategicReport('pipeline')">Pipeline Analysis</button>
-                                <button class="btn btn-primary" onclick="downloadStrategicReport('resources')">Resource Utilization</button>
-                                <button class="btn btn-primary" onclick="downloadStrategicReport('financial')">Financial Forecast</button>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                            <button type="button" onclick="closeModal()" class="btn btn-outline">Close</button>
-                            <button type="button" onclick="showOverrideModal('${id}')" class="btn btn-warning">Override Project Settings</button>
-                        </div>
-                    </div>
-                </div>
-            `;
             
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-
-        function showOverrideModal(id) {
-            closeModal();
-            const modalHtml = `
-                <div class="modal-overlay">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2>Override Project Settings</h2>
-                            <div class="subtitle">Executive Director Full Access</div>
-                        </div>
-                        
-                        <div class="form-section">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Override Pricing</label>
-                                    <input type="number" class="form-control" placeholder="New quote value" step="0.01">
-                                </div>
-                                <div class="form-group">
-                                    <label>Override Timeline</label>
-                                    <input type="number" class="form-control" placeholder="Days">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Override Reason</label>
-                                <textarea class="form-control" rows="3" placeholder="Enter reason for override..."></textarea>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                            <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                            <button type="button" onclick="applyOverride('${id}')" class="btn btn-warning">Apply Override</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-
-        async function downloadStrategicReport(type) {
-            alert(`${type.charAt(0).toUpperCase() + type.slice(1)} report downloaded successfully!`);
-        }
-
-        async function applyOverride(id) {
-            alert('Project settings overridden successfully!');
-            closeModal();
-        }
-
-        async function downloadEstimation(id) {
             try {
-                // Simulate downloading estimation file
-                alert('Estimation file downloaded successfully!');
+                showLoading();
+                await handleProposalAction(id, 'set_pricing', data, 'Pricing updated and sent to Director for approval!');
             } catch (error) {
-                alert('Error downloading estimation: ' + error.message);
+                alert('Error saving pricing: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ADD 10: Download functions for COO
+        async function downloadEstimationReport(proposalId) {
+            alert('Downloading Estimation Report...');
+            // In production, this would generate and download an actual report
+        }
+        async function downloadBOMReport(proposalId) {
+            alert('Downloading BOM Report...');
+            // In production, this would generate and download an actual report
+        }
+        async function downloadCostAnalysis(proposalId) {
+            alert('Downloading Cost Analysis...');
+            // In production, this would generate and download an actual report
+        }
+
+        // ADD 7: Delete Proposal function for BDM
+        async function deleteProposal(proposalId) {
+            if (!confirm('Are you sure you want to delete this proposal? This action cannot be undone and will delete all associated files.')) {
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await apiCall(`proposals?id=${proposalId}`, { method: 'DELETE' });
+                if (response.success) {
+                    alert('Proposal deleted successfully!');
+                    closeModal();
+                    showProposals();
+                }
+            } catch (error) {
+                alert('Error deleting proposal: ' + error.message);
+            } finally {
+                hideLoading();
             }
         }
 
         async function handleProposalAction(id, action, data = {}, msg) {
             try {
+                showLoading();
                 const { success } = await apiCall(`proposals?id=${id}`, { 
                     method: 'PUT', 
                     body: JSON.stringify({ action, data }) 
@@ -1777,12 +1673,15 @@
                 }
             } catch(err) { 
                 alert(`Error: ${err.message}`); 
+            } finally {
+                hideLoading();
             }
         }
 
         async function approveProposal(id) { 
+            const comments = prompt("Optional approval comments:");
             await handleProposalAction(id, 'director_approve', { 
-                notes: 'Approved via Executive Director portal.' 
+                comments: comments || 'Approved'
             }, 'Proposal approved successfully!'); 
         }
         
@@ -1790,7 +1689,7 @@
             const reason = prompt("Reason for rejection:"); 
             if (reason) {
                 await handleProposalAction(id, 'director_reject', { 
-                    rejectionReason: reason 
+                    comments: reason 
                 }, 'Proposal rejected and sent for revision.'); 
             }
         }
@@ -1823,14 +1722,14 @@
                         <div class="upload-icon">📤</div>
                         <p>Upload project files, reports, or documents</p>
                         <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">All formats supported</div>
-                        <input type="file" id="fileInput" multiple>
+                        <input type="file" id="fileInput" multiple style="display: none;">
                     </div>
                     <div id="filePreview"></div>
-                    <button class="btn btn-primary" onclick="handleFileUpload()" id="uploadBtn" style="display:none; margin-top: 1rem;">Upload Files</button>
+                    <button class="btn btn-primary" onclick="handleFileUpload()" style="margin-top: 1rem; width: auto;">Upload Files</button>
                 </div>
                 
                 <div class="action-section">
-                    <h3>Project Files</h3>
+                    <h3>All Files</h3>
                     <div id="fileListContainer">Loading files...</div>
                 </div>
             `;
@@ -1840,28 +1739,20 @@
             const uploadArea = document.getElementById('uploadArea');
             const fileInput = document.getElementById('fileInput');
             uploadArea.onclick = () => fileInput.click();
-            fileInput.onchange = () => previewFiles(fileInput.files);
-            
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => { 
-                uploadArea.addEventListener(eName, e => { 
-                    e.preventDefault(); 
-                    e.stopPropagation(); 
-                });
-            });
-            ['dragenter', 'dragover'].forEach(eName => 
-                uploadArea.addEventListener(eName, () => uploadArea.classList.add('dragover'))
-            );
-            ['dragleave', 'drop'].forEach(eName => 
-                uploadArea.addEventListener(eName, () => uploadArea.classList.remove('dragover'))
-            );
-            uploadArea.addEventListener('drop', e => previewFiles(e.dataTransfer.files));
+            fileInput.onchange = () => {
+                 const preview = document.getElementById('filePreview');
+                 if (fileInput.files.length > 0) {
+                     preview.innerHTML = '<h4>Files to Upload:</h4>' + 
+                        Array.from(fileInput.files).map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
+                 }
+            };
             
             showFiles();
         }
 
         async function handleFileUpload() {
             const files = document.getElementById('fileInput').files;
-            if (!files.length) return;
+            if (!files.length) return alert('Please select files to upload.');
             
             const formData = new FormData();
             Array.from(files).forEach(file => formData.append('files', file));
@@ -1901,15 +1792,14 @@
                     <div class="action-content">
                         <strong>📄 ${file.originalName}</strong>
                         <div class="action-meta">
-                            Project: ${file.proposalId ? file.proposalId : 'General'} | 
+                            Proposal ID: ${file.proposalId ? file.proposalId : 'General'} | 
                             Size: ${(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
-                            Uploaded: ${formatDate(file.uploadedAt)} | 
-                            Status: ${file.proposalId ? 'Approved' : 'Pending'}
+                            Uploaded: ${formatDate(file.uploadedAt)}
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button class="btn btn-primary btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>
+                        <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW</button>
+                        ${file.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>` : ''}
                     </div>
                 </div>
             `).join('') : '<p>No files found.</p>';
@@ -1930,44 +1820,18 @@
             }
         }
         
-        // Additional role-specific functions
+        // Additional placeholder functions
         function showWorkflow() {
             setActiveNav('nav-workflow');
-            document.getElementById('mainContent').innerHTML = `
-                <div class="page-header">
-                    <h2>Workflow</h2>
-                    <div class="subtitle">Manage project workflow and approvals</div>
-                </div>
-                <div class="action-section">
-                    <p>Workflow management features coming soon...</p>
-                </div>
-            `;
+            document.getElementById('mainContent').innerHTML = `<div class="page-header"><h2>Workflow</h2></div><div class="action-section"><p>Workflow management features are in development.</p></div>`;
         }
-
         function showReports() {
             setActiveNav('nav-reports');
-            document.getElementById('mainContent').innerHTML = `
-                <div class="page-header">
-                    <h2>Reports</h2>
-                    <div class="subtitle">Generate and download project reports</div>
-                </div>
-                <div class="action-section">
-                    <p>Advanced reporting features coming soon...</p>
-                </div>
-            `;
+            document.getElementById('mainContent').innerHTML = `<div class="page-header"><h2>Reports</h2></div><div class="action-section"><p>Advanced reporting features are in development.</p></div>`;
         }
-
         function showSettings() {
             setActiveNav('nav-settings');
-            document.getElementById('mainContent').innerHTML = `
-                <div class="page-header">
-                    <h2>Settings</h2>
-                    <div class="subtitle">System configuration and preferences</div>
-                </div>
-                <div class="action-section">
-                    <p>Settings panel coming soon...</p>
-                </div>
-            `;
+            document.getElementById('mainContent').innerHTML = `<div class="page-header"><h2>Settings</h2></div><div class="action-section"><p>System settings panel is in development.</p></div>`;
         }
         
         async function showActivities() {
