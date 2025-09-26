@@ -1,22 +1,14 @@
 const admin = require('./_firebase-admin');
-const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
-const multer = require('multer');
 const util = require('util');
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
-// Configure multer to handle file parsing in memory, with a 10MB file size limit
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-}).array('files'); // This allows for multiple file uploads with the field name 'files'
-
 const allowCors = fn => async (req, res) => {
-    res.setHeader('Access-control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE'); // Added DELETE
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
     if (req.method === 'OPTIONS') {
         res.status(200).end();
@@ -25,158 +17,194 @@ const allowCors = fn => async (req, res) => {
     return await fn(req, res);
 };
 
-// Function to check file access based on user role
-const canAccessFile = (file, userRole, userId) => {
-    // Directors can access all files
-    if (userRole === 'director') return true;
-    // COO can access all files
-    if (userRole === 'coo') return true;
-    // BDM can access project files and approved estimation files
-    if (userRole === 'bdm') {
-        if (file.fileType === 'project') return true;
-        if (file.fileType === 'estimation' && file.status === 'approved') return true;
-        return false;
-    }
-    // Estimator can access project files and their own estimation files
-    if (userRole === 'estimator') {
-        if (file.fileType === 'project') return true;
-        if (file.fileType === 'estimation' && file.uploadedByUid === userId) return true;
-        return false;
-    }
-    return false;
-};
-
 const handler = async (req, res) => {
     try {
-        // Authentication is run for all methods except OPTIONS
         await util.promisify(verifyToken)(req, res);
 
         if (req.method === 'GET') {
-            const { proposalId, fileType } = req.query;
-            let query = db.collection('files');
-        
-            if (proposalId) {
-                query = query.where('proposalId', '==', proposalId);
+            const { id } = req.query;
+            if (id) {
+                const doc = await db.collection('proposals').doc(id).get();
+                if (!doc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
+                return res.status(200).json({ success: true, data: { id: doc.id, ...doc.data() } });
             }
-        
-            if (fileType) {
-                query = query.where('fileType', '==', fileType);
-            }
-        
-            const filesSnapshot = await query.orderBy('uploadedAt', 'desc').get();
-            let files = filesSnapshot.docs.map(doc => doc.data());
-        
-            // Filter files based on user role and permissions
-            files = files.filter(file => canAccessFile(file, req.user.role, req.user.uid));
-        
-            // Add access permission flag for frontend
-            files = files.map(file => ({
-                ...file,
-                canDownload: canAccessFile(file, req.user.role, req.user.uid),
-                canDelete: file.uploadedByUid === req.user.uid || req.user.role === 'director'
-            }));
-        
-            return res.status(200).json({ success: true, data: files });
+            const snapshot = await db.collection('proposals').orderBy('createdAt', 'desc').get();
+            const proposals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return res.status(200).json({ success: true, data: proposals });
         }
 
         if (req.method === 'POST') {
-            await util.promisify(upload)(req, res);
-            if (!req.files || req.files.length === 0) {
-                return res.status(400).json({ success: false, error: 'No files were uploaded.' });
+            const { projectName, clientCompany, scopeOfWork, projectType, priority, country, timeline } = req.body;
+            if (!projectName || !clientCompany || !scopeOfWork) {
+                return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
-            
-            const uploadPromises = req.files.map(file => {
-                const uniqueFilename = `${uuidv4()}-${file.originalname}`;
-                const blob = bucket.file(uniqueFilename);
-                const blobStream = blob.createWriteStream({ metadata: { contentType: file.mimetype } });
 
-                return new Promise((resolve, reject) => {
-                    blobStream.on('error', err => reject(err));
-                    blobStream.on('finish', async () => {
-                        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-                        const fileMetadata = {
-                            id: uuidv4(),
-                            originalName: file.originalname,
-                            fileName: uniqueFilename,
-                            fileSize: file.size,
-                            mimeType: file.mimetype,
-                            url: publicUrl,
-                            proposalId: req.body.proposalId || null,
-                            fileType: req.body.fileType || 'project', // 'project' or 'estimation'
-                            status: req.body.fileType === 'estimation' ? 'pending' : 'active', // Track approval status
-                            uploadedByUid: req.user.uid,
-                            uploadedByName: req.user.name,
-                            uploadedByRole: req.user.role, // Add role for tracking
-                            uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        };
-                        await db.collection('files').doc(fileMetadata.id).set(fileMetadata);
-                        resolve(fileMetadata);
-                    });
-                    blobStream.end(file.buffer);
-                });
+            const newProposal = {
+                projectName: projectName.trim(),
+                clientCompany: clientCompany.trim(),
+                projectType: projectType || 'Commercial',
+                scopeOfWork: scopeOfWork.trim(),
+                priority: priority || 'Medium',
+                country: country || 'Not Specified',
+                timeline: timeline || 'Not Specified',
+                status: 'pending_estimation',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                createdByUid: req.user.uid,
+                createdByName: req.user.name,
+                changeLog: [{ timestamp: new Date().toISOString(), action: 'created', performedByName: req.user.name, details: 'Proposal created' }]
+            };
+
+            const docRef = await db.collection('proposals').add(newProposal);
+            await db.collection('activities').add({
+                type: 'proposal_created',
+                details: `New proposal created: ${projectName} for ${clientCompany}`,
+                performedByName: req.user.name,
+                performedByRole: req.user.role,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                proposalId: docRef.id, projectName, clientCompany
             });
-
-            const results = await Promise.all(uploadPromises);
-            return res.status(201).json({ success: true, message: 'Files uploaded successfully.', data: results });
+            // Return new proposal with its ID for file linking on frontend
+            return res.status(201).json({ success: true, data: { id: docRef.id, ...newProposal } });
         }
 
         if (req.method === 'PUT') {
-            const { id, action } = req.query;
-        
-            if (!id || !action) {
-                return res.status(400).json({ success: false, error: 'File ID and action are required.' });
-            }
-        
-            if (action === 'approve' && req.user.role === 'director') {
-                const fileRef = db.collection('files').doc(id);
-                const fileDoc = await fileRef.get();
-        
-                if (!fileDoc.exists) {
-                    return res.status(404).json({ success: false, error: 'File not found' });
-                }
-        
-                await fileRef.update({
-                    status: 'approved',
-                    approvedBy: req.user.name,
-                    approvedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-        
-                // Notify BDM that estimation file is approved
-                if (fileDoc.data().fileType === 'estimation') {
+            const { id } = req.query;
+            const { action, data } = req.body;
+            if (!id || !action) return res.status(400).json({ success: false, error: 'Missing proposal ID or action' });
+
+            const proposalRef = db.collection('proposals').doc(id);
+            const proposalDoc = await proposalRef.get();
+            if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
+            
+            const proposal = proposalDoc.data();
+            let updates = {};
+            let activityDetail = '';
+
+            switch (action) {
+                case 'add_estimation':
+                    updates = { status: 'pending_pricing', estimation: { ...data, estimatedBy: req.user.name, estimatedAt: new Date().toISOString() } };
+                    activityDetail = `Estimation added: ${data.totalHours} hours`;
+                    break;
+                case 'set_pricing':
+                    updates = { status: 'pending_director_approval', pricing: { ...data, pricedBy: req.user.name, pricedAt: new Date().toISOString() } };
+                    // If COO updated the services, apply the change
+                    if (data.updatedServices) {
+                        updates['estimation.services'] = data.updatedServices;
+                    }
+                    activityDetail = `Pricing set: ${data.currency || 'USD'} ${data.quoteValue}`;
+                    break;
+                case 'director_approve':
+                    updates = { 
+                        status: 'approved', 
+                        directorApproval: { 
+                            approved: true, 
+                            ...data, 
+                            approvedBy: req.user.name, 
+                            approvedAt: new Date().toISOString(),
+                            comments: data.comments || ''
+                        } 
+                    };
+                    activityDetail = `Director approved proposal${data.comments ? ': ' + data.comments : ''}`;
+                    const stakeholders = ['bdm', 'estimator', 'coo'];
+                    for (const role of stakeholders) {
+                        await db.collection('notifications').add({
+                            type: 'proposal_approved',
+                            recipientRole: role,
+                            proposalId: id,
+                            message: `${proposal.projectName} has been approved by Director`,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                            isRead: false
+                        });
+                    }
+                    break;
+                case 'director_reject':
+                    updates = { 
+                        status: 'revision_required',
+                        directorApproval: { 
+                            approved: false, 
+                            ...data, 
+                            rejectedBy: req.user.name, 
+                            rejectedAt: new Date().toISOString(),
+                            comments: data.comments || '',
+                            requiresRevisionBy: data.requiresRevisionBy || 'estimator'
+                        } 
+                    };
+                    activityDetail = `Director requested revision: ${data.comments}`;
                     await db.collection('notifications').add({
-                        type: 'estimation_approved',
-                        recipientRole: 'bdm',
-                        message: `Estimation file approved for proposal ${fileDoc.data().proposalId}`,
-                        fileId: id,
+                        type: 'revision_required',
+                        recipientRole: data.requiresRevisionBy,
+                        proposalId: id,
+                        message: `Revision required for ${proposal.projectName}: ${data.comments}`,
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                         isRead: false
                     });
-                }
-        
-                return res.status(200).json({ success: true, message: 'File approved successfully' });
+                    break;
+                case 'resubmit_after_revision':
+                    updates = {
+                        status: 'pending_director_approval',
+                        revisionHistory: admin.firestore.FieldValue.arrayUnion({
+                            revisedBy: req.user.name,
+                            revisedAt: new Date().toISOString(),
+                            revisionNotes: data.notes
+                        })
+                    };
+                    activityDetail = `Revision completed and resubmitted by ${req.user.name}`;
+                    break;
+                case 'submit_to_client':
+                    updates = { status: 'submitted_to_client' };
+                    activityDetail = `Proposal submitted to client`;
+                    break;
+                default:
+                    return res.status(400).json({ success: false, error: 'Invalid action' });
             }
-        
-            return res.status(400).json({ success: false, error: 'Invalid action or insufficient permissions' });
+            
+            updates.changeLog = admin.firestore.FieldValue.arrayUnion({ timestamp: new Date().toISOString(), action: action, performedByName: req.user.name, details: `${action.replace(/_/g, ' ')} completed` });
+            updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+            
+            await proposalRef.update(updates);
+            await db.collection('activities').add({
+                type: `proposal_${action}`, details: activityDetail, performedByName: req.user.name, performedByRole: req.user.role,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(), proposalId: id, projectName: proposal.projectName, clientCompany: proposal.clientCompany
+            });
+            return res.status(200).json({ success: true, message: 'Proposal updated successfully' });
         }
 
         if (req.method === 'DELETE') {
             const { id } = req.query;
-            if (!id) return res.status(400).json({ success: false, error: 'A file ID is required.' });
+            if (!id) return res.status(400).json({ success: false, error: 'Missing proposal ID' });
 
-            const fileDocRef = db.collection('files').doc(id);
-            const fileDoc = await fileDocRef.get();
-            if (!fileDoc.exists) return res.status(404).json({ success: false, error: 'File not found.' });
+            const proposalRef = db.collection('proposals').doc(id);
+            const proposalDoc = await proposalRef.get();
+            if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
             
-            await bucket.file(fileDoc.data().fileName).delete();
-            await fileDocRef.delete();
+            const proposalData = proposalDoc.data();
+            // Security check: Only creator or a director can delete
+            if (proposalData.createdByUid !== req.user.uid && req.user.role !== 'director') {
+                return res.status(403).json({ success: false, error: 'You are not authorized to delete this proposal.' });
+            }
+
+            // Delete associated files from storage and Firestore
+            const filesSnapshot = await db.collection('files').where('proposalId', '==', id).get();
+            if (!filesSnapshot.empty) {
+                const deletePromises = filesSnapshot.docs.map(doc => {
+                    const fileData = doc.data();
+                    return Promise.all([
+                        bucket.file(fileData.fileName).delete(), // Delete from storage
+                        doc.ref.delete() // Delete from 'files' collection
+                    ]);
+                });
+                await Promise.all(deletePromises);
+            }
+
+            // Delete the proposal document
+            await proposalRef.delete();
             
-            return res.status(200).json({ success: true, message: 'File deleted successfully.' });
+            return res.status(200).json({ success: true, message: 'Proposal and all associated files deleted successfully' });
         }
 
-        return res.status(405).json({ success: false, error: 'Method not allowed.' });
-
+        return res.status(405).json({ success: false, error: 'Method not allowed' });
     } catch (error) {
-        console.error(`${req.method} /api/files error:`, error);
+        console.error('Proposals API error:', error);
         return res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
     }
 };
