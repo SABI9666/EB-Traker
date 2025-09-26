@@ -3,11 +3,12 @@ const { verifyToken } = require('../middleware/auth');
 const util = require('util');
 
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
 const allowCors = fn => async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE'); // Added DELETE
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
     if (req.method === 'OPTIONS') {
         res.status(200).end();
@@ -62,6 +63,7 @@ const handler = async (req, res) => {
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 proposalId: docRef.id, projectName, clientCompany
             });
+            // Return new proposal with its ID for file linking on frontend
             return res.status(201).json({ success: true, data: { id: docRef.id, ...newProposal } });
         }
 
@@ -85,7 +87,11 @@ const handler = async (req, res) => {
                     break;
                 case 'set_pricing':
                     updates = { status: 'pending_director_approval', pricing: { ...data, pricedBy: req.user.name, pricedAt: new Date().toISOString() } };
-                    activityDetail = `Pricing set: $${data.quoteValue}`;
+                    // If COO updated the services, apply the change
+                    if (data.updatedServices) {
+                        updates['estimation.services'] = data.updatedServices;
+                    }
+                    activityDetail = `Pricing set: ${data.currency || 'USD'} ${data.quoteValue}`;
                     break;
                 case 'director_approve':
                     updates = { 
@@ -95,11 +101,10 @@ const handler = async (req, res) => {
                             ...data, 
                             approvedBy: req.user.name, 
                             approvedAt: new Date().toISOString(),
-                            comments: data.comments || '' // Add approval comments
+                            comments: data.comments || ''
                         } 
                     };
                     activityDetail = `Director approved proposal${data.comments ? ': ' + data.comments : ''}`;
-                        // Notify all stakeholders
                     const stakeholders = ['bdm', 'estimator', 'coo'];
                     for (const role of stakeholders) {
                         await db.collection('notifications').add({
@@ -114,18 +119,17 @@ const handler = async (req, res) => {
                     break;
                 case 'director_reject':
                     updates = { 
-                        status: 'revision_required', // New status for clarity
+                        status: 'revision_required',
                         directorApproval: { 
                             approved: false, 
                             ...data, 
                             rejectedBy: req.user.name, 
                             rejectedAt: new Date().toISOString(),
-                            comments: data.comments || '', // Add comments field
-                            requiresRevisionBy: data.requiresRevisionBy || 'estimator' // Track who needs to revise
+                            comments: data.comments || '',
+                            requiresRevisionBy: data.requiresRevisionBy || 'estimator'
                         } 
                     };
                     activityDetail = `Director requested revision: ${data.comments}`;
-                        // Send notification to responsible party
                     await db.collection('notifications').add({
                         type: 'revision_required',
                         recipientRole: data.requiresRevisionBy,
@@ -136,9 +140,8 @@ const handler = async (req, res) => {
                     });
                     break;
                 case 'resubmit_after_revision':
-                    // New action for resubmitting after corrections
                     updates = {
-                        status: 'pending_director_approval', // Goes back to director
+                        status: 'pending_director_approval',
                         revisionHistory: admin.firestore.FieldValue.arrayUnion({
                             revisedBy: req.user.name,
                             revisedAt: new Date().toISOString(),
@@ -165,6 +168,40 @@ const handler = async (req, res) => {
             });
             return res.status(200).json({ success: true, message: 'Proposal updated successfully' });
         }
+
+        if (req.method === 'DELETE') {
+            const { id } = req.query;
+            if (!id) return res.status(400).json({ success: false, error: 'Missing proposal ID' });
+
+            const proposalRef = db.collection('proposals').doc(id);
+            const proposalDoc = await proposalRef.get();
+            if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
+            
+            const proposalData = proposalDoc.data();
+            // Security check: Only creator or a director can delete
+            if (proposalData.createdByUid !== req.user.uid && req.user.role !== 'director') {
+                return res.status(403).json({ success: false, error: 'You are not authorized to delete this proposal.' });
+            }
+
+            // Delete associated files from storage and Firestore
+            const filesSnapshot = await db.collection('files').where('proposalId', '==', id).get();
+            if (!filesSnapshot.empty) {
+                const deletePromises = filesSnapshot.docs.map(doc => {
+                    const fileData = doc.data();
+                    return Promise.all([
+                        bucket.file(fileData.fileName).delete(), // Delete from storage
+                        doc.ref.delete() // Delete from 'files' collection
+                    ]);
+                });
+                await Promise.all(deletePromises);
+            }
+
+            // Delete the proposal document
+            await proposalRef.delete();
+            
+            return res.status(200).json({ success: true, message: 'Proposal and all associated files deleted successfully' });
+        }
+
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     } catch (error) {
         console.error('Proposals API error:', error);
