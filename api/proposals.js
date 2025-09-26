@@ -88,13 +88,64 @@ const handler = async (req, res) => {
                     activityDetail = `Pricing set: $${data.quoteValue}`;
                     break;
                 case 'director_approve':
-                    updates = { status: 'approved', directorApproval: { approved: true, ...data, approvedBy: req.user.name, approvedAt: new Date().toISOString() } };
-                    activityDetail = `Director approved proposal`;
+                    updates = { 
+                        status: 'approved', 
+                        directorApproval: { 
+                            approved: true, 
+                            ...data, 
+                            approvedBy: req.user.name, 
+                            approvedAt: new Date().toISOString(),
+                            comments: data.comments || '' // Add approval comments
+                        } 
+                    };
+                    activityDetail = `Director approved proposal${data.comments ? ': ' + data.comments : ''}`;
+                        // Notify all stakeholders
+                    const stakeholders = ['bdm', 'estimator', 'coo'];
+                    for (const role of stakeholders) {
+                        await db.collection('notifications').add({
+                            type: 'proposal_approved',
+                            recipientRole: role,
+                            proposalId: id,
+                            message: `${proposal.projectName} has been approved by Director`,
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                            isRead: false
+                        });
+                    }
                     break;
                 case 'director_reject':
-                    // This matches the demo logic by sending it back to the COO for revision.
-                    updates = { status: 'pending_pricing', directorApproval: { approved: false, ...data, rejectedBy: req.user.name, rejectedAt: new Date().toISOString() } };
-                    activityDetail = `Director requested revision on proposal`;
+                    updates = { 
+                        status: 'revision_required', // New status for clarity
+                        directorApproval: { 
+                            approved: false, 
+                            ...data, 
+                            rejectedBy: req.user.name, 
+                            rejectedAt: new Date().toISOString(),
+                            comments: data.comments || '', // Add comments field
+                            requiresRevisionBy: data.requiresRevisionBy || 'estimator' // Track who needs to revise
+                        } 
+                    };
+                    activityDetail = `Director requested revision: ${data.comments}`;
+                        // Send notification to responsible party
+                    await db.collection('notifications').add({
+                        type: 'revision_required',
+                        recipientRole: data.requiresRevisionBy,
+                        proposalId: id,
+                        message: `Revision required for ${proposal.projectName}: ${data.comments}`,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        isRead: false
+                    });
+                    break;
+                case 'resubmit_after_revision':
+                    // New action for resubmitting after corrections
+                    updates = {
+                        status: 'pending_director_approval', // Goes back to director
+                        revisionHistory: admin.firestore.FieldValue.arrayUnion({
+                            revisedBy: req.user.name,
+                            revisedAt: new Date().toISOString(),
+                            revisionNotes: data.notes
+                        })
+                    };
+                    activityDetail = `Revision completed and resubmitted by ${req.user.name}`;
                     break;
                 case 'submit_to_client':
                     updates = { status: 'submitted_to_client' };
