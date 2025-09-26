@@ -17,7 +17,6 @@ const allowCors = fn => async (req, res) => {
 };
 
 const handler = async (req, res) => {
-    // This structure ensures OPTIONS requests are handled before auth
     if (req.method === 'GET') {
         try {
             await util.promisify(verifyToken)(req, res);
@@ -26,8 +25,7 @@ const handler = async (req, res) => {
             const proposalsSnapshot = await db.collection('proposals').get();
             const proposals = proposalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // --- 1. Calculate Executive & BDM Stats ---
-            const wonProposals = proposals.filter(p => p.status === 'submitted_to_client' || p.status === 'won'); // Assuming submitted means won for now
+            const wonProposals = proposals.filter(p => p.status === 'submitted_to_client' || p.status === 'won');
             const totalWonValue = wonProposals.reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
             const totalProposalsCount = proposals.length;
             const winRate = totalProposalsCount > 0 ? ((wonProposals.length / totalProposalsCount) * 100).toFixed(0) : 0;
@@ -35,11 +33,12 @@ const handler = async (req, res) => {
             const pipelineValue = proposals.filter(p => !['submitted_to_client', 'won', 'rejected', 'lost'].includes(p.status))
                                          .reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
 
-            // --- 2. Determine Action Items by Role ---
             let actionItemsQuery;
             switch(userRole) {
                 case 'estimator':
-                    actionItemsQuery = db.collection('proposals').where('status', '==', 'pending_estimation');
+                    actionItemsQuery = db.collection('proposals')
+                        .where('status', 'in', ['pending_estimation', 'revision_required'])
+                        .where('directorApproval.requiresRevisionBy', '==', 'estimator');
                     break;
                 case 'coo':
                     actionItemsQuery = db.collection('proposals').where('status', '==', 'pending_pricing');
@@ -48,7 +47,9 @@ const handler = async (req, res) => {
                     actionItemsQuery = db.collection('proposals').where('status', '==', 'pending_director_approval');
                     break;
                 case 'bdm':
-                    actionItemsQuery = db.collection('proposals').where('status', '==', 'approved');
+                    actionItemsQuery = db.collection('proposals')
+                        .where('status', 'in', ['approved', 'revision_required'])
+                        .where('directorApproval.requiresRevisionBy', '==', 'bdm');
                     break;
                 default:
                     actionItemsQuery = null;
@@ -63,7 +64,8 @@ const handler = async (req, res) => {
                         'pending_estimation': 'estimation_required',
                         'pending_pricing': 'pricing_required',
                         'pending_director_approval': 'approval_required',
-                        'approved': 'ready_for_client'
+                        'approved': 'ready_for_client',
+                        'revision_required': 'needs_revision'
                     };
                     return {
                         proposalId: doc.id,
@@ -74,11 +76,9 @@ const handler = async (req, res) => {
                 });
             }
 
-            // --- 3. Fetch Recent Activities ---
             const activitiesSnapshot = await db.collection('activities').orderBy('timestamp', 'desc').limit(5).get();
             const recentActivities = activitiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             
-            // --- 4. Build Role-Specific Dashboard Data ---
             let dashboardData = {};
             if (userRole === 'director') {
                 dashboardData = {
@@ -92,8 +92,8 @@ const handler = async (req, res) => {
                     executiveOverview: {
                         'Booked Revenue': `$${totalWonValue.toLocaleString()}`,
                         'Projects Won': wonProposals.length,
-                        'Client Satisfaction': '92%', // Static for demo purposes
-                        'Resource Utilization': '85%' // Static for demo purposes
+                        'Client Satisfaction': '92%',
+                        'Resource Utilization': '85%'
                     }
                 };
             } else {
