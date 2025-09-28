@@ -65,7 +65,8 @@
         .btn-danger { background: var(--danger); color: white; }
         .btn-warning { background: var(--warning); color: white; }
         .btn-sm { padding: 0.6rem 1.2rem; font-size: 0.85rem; width: auto; }
-        
+        .btn-disabled { background: #ccc; color: #666; cursor: not-allowed; }
+
         .role-selector { margin-bottom: 1.5rem; }
         .role-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
         .role-btn { padding: 1rem; background: var(--light-blue); border: 2px solid var(--primary-blue); border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s ease; color: var(--primary-blue); font-weight: 600; }
@@ -74,10 +75,11 @@
         .info-box h4 { color: var(--primary-blue); margin-bottom: 1rem; }
         .info-box ul { list-style-position: inside; padding-left: 0.5rem; }
         .info-box li { margin-bottom: 0.5rem; }
-        .error-message, .success-message, .info-message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 600; }
+        .error-message, .success-message, .info-message, .warning-message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-weight: 600; }
         .error-message { background: #f8d7da; color: #721c24; }
         .success-message { background: #d4edda; color: #155724; }
         .info-message { background: #d1ecf1; color: #0c5460; }
+        .warning-message { background: #fff3cd; color: #856404; }
         
         /* App layout */
         .app-container { display: none; min-height: 100vh; background: var(--background); }
@@ -227,6 +229,19 @@
             display: flex;
             gap: 1rem;
         }
+
+        /* File access indicators */
+        .file-access-indicator {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .access-full { background: #d4edda; color: #155724; }
+        .access-restricted { background: #fff3cd; color: #856404; }
+        .access-pending { background: #f8d7da; color: #721c24; }
         
         /* Executive overview section */
         .executive-overview {
@@ -626,6 +641,39 @@
             return (ts && ts.seconds) ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A'; 
         }
 
+        // Helper function to get file access indicator
+        function getFileAccessIndicator(file, proposalStatus) {
+            if (!file.fileType || file.fileType === 'project') {
+                return '<span class="file-access-indicator access-full">📁 Project File</span>';
+            }
+            
+            if (file.fileType === 'estimation') {
+                if (currentUserRole === 'bdm') {
+                    if (proposalStatus === 'approved' || proposalStatus === 'submitted_to_client') {
+                        return '<span class="file-access-indicator access-full">📊 Estimation (Approved)</span>';
+                    } else {
+                        return '<span class="file-access-indicator access-pending">📊 Estimation (Pending Approval)</span>';
+                    }
+                } else {
+                    return '<span class="file-access-indicator access-full">📊 Estimation File</span>';
+                }
+            }
+            
+            return '';
+        }
+
+        // Helper function to check if user can access estimation files
+        function canAccessEstimationFile(proposalStatus) {
+            if (['estimator', 'coo', 'director'].includes(currentUserRole)) {
+                return true;
+            }
+            if (currentUserRole === 'bdm') {
+                return proposalStatus === 'approved' || proposalStatus === 'submitted_to_client';
+            }
+            return false;
+        }
+
+
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             auth.onAuthStateChanged(async (user) => {
@@ -916,11 +964,7 @@
             `;
         }
         
-        // =============================
-        // NEW AND UPDATED FUNCTIONS START HERE
-        // =============================
-        
-        // FIX 11: Create Proposal with File Upload
+        // Create Proposal with File Upload (BDM only uploads project files)
         function showCreateProposalModal() {
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
@@ -1054,12 +1098,12 @@
                     if (response.success && response.data) {
                         const proposalId = response.data.id;
                         
-                        // Upload files if any
+                        // Upload files if any (BDM only uploads project files)
                         if (selectedFiles.length > 0) {
                             const fileFormData = new FormData();
                             selectedFiles.forEach(file => fileFormData.append('files', file));
                             fileFormData.append('proposalId', proposalId);
-                            fileFormData.append('fileType', 'project');
+                            fileFormData.append('fileType', 'project'); // BDM uploads project files
                             
                             await apiCall('files', {
                                 method: 'POST',
@@ -1079,13 +1123,13 @@
             });
         }
         
-        // FIX 5: View Proposal with working file display
+        // View Proposal with file access control
         async function viewProposal(proposalId) {
             try {
                 showLoading();
                 const { success, data } = await apiCall(`proposals?id=${proposalId}`);
                 if (success && data) {
-                    // Also load files for this proposal
+                    // Also load files for this proposal with access control
                     const filesResponse = await apiCall(`files?proposalId=${proposalId}`);
                     const files = filesResponse.success ? filesResponse.data : [];
                     
@@ -1100,13 +1144,12 @@
             }
         }
 
-        // FIX 6: Render proposal detail modal with files
+        // Render proposal detail modal with file access control
         function renderProposalDetailModal(p, files = []) {
             const projectFiles = files.filter(f => !f.fileType || f.fileType === 'project');
             const estimationFiles = files.filter(f => f.fileType === 'estimation');
-
             let actionsHtml = '';
-            
+
             // Role-based actions
             if (currentUserRole === 'estimator' && p.status === 'pending_estimation') {
                 actionsHtml = `<button class="btn btn-primary" onclick="showEstimationModal('${p.id}')">Add Estimation</button>`;
@@ -1125,6 +1168,39 @@
             if (currentUserRole === 'bdm' && p.createdByUid === currentUser.uid) {
                 actionsHtml += ` <button class="btn btn-danger btn-sm" onclick="deleteProposal('${p.id}')">Delete Proposal</button>`;
             }
+            
+            // Build estimation files section with access control
+            let estimationFilesHtml = '';
+            if (estimationFiles.length > 0) {
+                if (canAccessEstimationFile(p.status)) {
+                    estimationFilesHtml = `
+                        <div class="form-section">
+                            <h4>Estimation Files ${getFileAccessIndicator({ fileType: 'estimation' }, p.status)}</h4>
+                            ${estimationFiles.map(file => `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border-radius: 5px; margin-bottom: 0.5rem; border: 1px solid var(--border);">
+                                    <span>📊 ${file.originalName}</span>
+                                    <div>
+                                        <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">View</button>
+                                        <button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">Download</button>
+                                        ${file.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    estimationFilesHtml = `
+                        <div class="form-section">
+                            <h4>Estimation Files ${getFileAccessIndicator({ fileType: 'estimation' }, p.status)}</h4>
+                            <div class="warning-message">
+                                <strong>Access Restricted:</strong> Estimation files will be available after Director approval.
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+
             const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content" style="max-width: 1000px;">
@@ -1147,13 +1223,14 @@
                                 <p><strong>Created by:</strong> ${p.createdByName} on ${formatDate(p.createdAt)}</p>
                             </div>
                             <div class="form-section">
-                                <h4>Project Files</h4>
+                                <h4>Project Files ${getFileAccessIndicator({ fileType: 'project' }, p.status)}</h4>
                                 ${projectFiles.length ? projectFiles.map(file => `
                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border-radius: 5px; margin-bottom: 0.5rem; border: 1px solid var(--border);">
                                         <span>📄 ${file.originalName}</span>
                                         <div>
                                             <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">View</button>
                                             <button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">Download</button>
+                                            ${file.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>` : ''}
                                         </div>
                                     </div>
                                 `).join('') : '<p>No project files uploaded yet.</p>'}
@@ -1171,22 +1248,7 @@
                                 </div>
                             ` : '<div class="form-section"><h4>Estimation Details</h4><p>Not available</p></div>'}
                             
-                            ${estimationFiles.length ? `
-                                <div class="form-section">
-                                    <h4>Estimation Files</h4>
-                                    ${estimationFiles.map(file => `
-                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border-radius: 5px; margin-bottom: 0.5rem; border: 1px solid var(--border);">
-                                            <span>📊 ${file.originalName}</span>
-                                            <div>
-                                                ${(currentUserRole === 'bdm' && p.status === 'approved') || currentUserRole !== 'bdm' ? `
-                                                    <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">View</button>
-                                                    <button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">Download</button>
-                                                ` : '<span style="color: #666; font-size: 0.9rem;">Awaiting approval</span>'}
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
+                            ${estimationFilesHtml}
                             
                             ${p.pricing ? `
                                 <div class="form-section">
@@ -1197,7 +1259,7 @@
                                     <p><strong>Priced By:</strong> ${p.pricing.pricedBy}</p>
                                 </div>
                             ` : ''}
-                                                
+                                                                    
                             ${p.directorApproval ? `
                                 <div class="form-section">
                                     <h4>Director Approval</h4>
@@ -1219,7 +1281,7 @@
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
 
-        // FIX 1: Estimator Manhours Saving and Services Selection (Unified Modal)
+        // Estimator Manhours Modal (only estimator can upload estimation files)
         function showEstimationModal(id) {
             closeModal();
             const modalHtml = `
@@ -1316,7 +1378,7 @@
                                 </div>
                             </div>
                             <div class="form-section">
-                                <h4>Upload BOQ & Calculation Files</h4>
+                                <h4>Upload BOQ & Calculation Files (Estimator Only)</h4>
                                 <div class="upload-area" id="boqUploadArea" onclick="document.getElementById('boqFileInput').click()">
                                     <div class="upload-icon">📊</div>
                                     <p>Upload BOQ, MTO, and calculation sheets</p>
@@ -1370,7 +1432,7 @@
             });
         }
 
-        // FIX 2: Save Estimation with proper data collection
+        // Save Estimation with proper data collection (only estimator can upload estimation files)
         async function saveEstimation(proposalId) {
             const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(cb => cb.value);
             
@@ -1409,13 +1471,13 @@
             try {
                 showLoading();
                 
-                // First upload BOQ files if any
+                // First upload BOQ files if any (only estimator can upload estimation files)
                 const fileInput = document.getElementById('boqFileInput');
                 if (fileInput.files.length > 0) {
                     const formData = new FormData();
                     Array.from(fileInput.files).forEach(file => formData.append('files', file));
                     formData.append('proposalId', proposalId);
-                    formData.append('fileType', 'estimation');
+                    formData.append('fileType', 'estimation'); // Estimator uploads estimation files
                     
                     await apiCall('files', { method: 'POST', body: formData });
                 }
@@ -1441,7 +1503,7 @@
             }
         }
 
-        // FIX 3: Load and display project files correctly
+        // Load and display project files (accessible to all roles)
         async function loadProjectFiles(proposalId) {
             try {
                 const { success, data } = await apiCall(`files?proposalId=${proposalId}`);
@@ -1477,7 +1539,7 @@
             }
         }
 
-        // FIX 4: Download file function
+        // Download file function
         function downloadFile(url, filename) {
             // Create an anchor element and trigger download
             const link = document.createElement('a');
@@ -1489,7 +1551,7 @@
             document.body.removeChild(link);
         }
 
-        // FIX 8: COO Pricing Modal with Edit Services
+        // COO Pricing Modal with Edit Services
         function showPricingModal(id) {
             closeModal();
             
@@ -1602,7 +1664,7 @@
             });
         }
         
-        // FIX 9: Save pricing with updated services
+        // Save pricing with updated services
         async function savePricing(id) {
             const services = Array.from(document.querySelectorAll('input[name="editServices"]:checked')).map(cb => cb.value);
             
@@ -1624,7 +1686,7 @@
             }
         }
 
-        // ADD 10: Download functions for COO
+        // Download functions for COO
         async function downloadEstimationReport(proposalId) {
             alert('Downloading Estimation Report...');
             // In production, this would generate and download an actual report
@@ -1638,7 +1700,7 @@
             // In production, this would generate and download an actual report
         }
 
-        // ADD 7: Delete Proposal function for BDM
+        // Delete Proposal function for BDM
         async function deleteProposal(proposalId) {
             if (!confirm('Are you sure you want to delete this proposal? This action cannot be undone and will delete all associated files.')) {
                 return;
@@ -1658,6 +1720,34 @@
                 hideLoading();
             }
         }
+        
+        // Delete File function with access control
+        async function deleteFile(fileId) {
+            if (!confirm('Are you sure you want to delete this file?')) return;
+            try {
+                showLoading();
+                const { success } = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
+                if (success) {
+                    alert('File deleted successfully!');
+                    // Refresh the current view
+                    if (document.getElementById('fileListContainer')) {
+                        showFileUpload();
+                    } else {
+                        // If in proposal view, close and reopen
+                        const proposalId = new URLSearchParams(window.location.search).get('proposalId');
+                        if (proposalId) {
+                            closeModal();
+                            viewProposal(proposalId);
+                        }
+                    }
+                }
+            } catch(err) { 
+                alert(`Error: ${err.message}`); 
+            } finally {
+                hideLoading();
+            }
+        }
+
 
         async function handleProposalAction(id, action, data = {}, msg) {
             try {
@@ -1703,7 +1793,7 @@
             }
         }
 
-        // File Management Functions
+        // File Management Functions with Role-based Access Control
         function showFileUpload() {
             setActiveNav('nav-files');
             const content = `
@@ -1712,40 +1802,49 @@
                     <div class="subtitle">Manage project files, uploads, and downloads</div>
                 </div>
                 
+                ${currentUserRole === 'bdm' ? `
                 <div class="action-section">
-                    <h3>Upload New Files</h3>
+                    <h3>Upload New Project Files (BDM Only)</h3>
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label>Link to Proposal (Optional)</label>
                         <input type="text" id="fileProposalId" class="form-control" placeholder="Enter Proposal ID">
                     </div>
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-icon">📤</div>
-                        <p>Upload project files, reports, or documents</p>
+                        <p>Upload project files, RFQ, tender documents</p>
                         <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">All formats supported</div>
                         <input type="file" id="fileInput" multiple style="display: none;">
                     </div>
                     <div id="filePreview"></div>
                     <button class="btn btn-primary" onclick="handleFileUpload()" style="margin-top: 1rem; width: auto;">Upload Files</button>
                 </div>
+                ` : ''}
                 
                 <div class="action-section">
-                    <h3>All Files</h3>
+                    <h3>All Files (Based on Your Access Level)</h3>
+                     <div class="info-message">
+                        <strong>File Access Rules:</strong><br>
+                        • Project Files: Accessible to all roles<br>
+                        • Estimation Files: Accessible to Estimator, COO, Director. BDM can access after Director approval.
+                    </div>
                     <div id="fileListContainer">Loading files...</div>
                 </div>
             `;
             
             document.getElementById('mainContent').innerHTML = content;
             
-            const uploadArea = document.getElementById('uploadArea');
-            const fileInput = document.getElementById('fileInput');
-            uploadArea.onclick = () => fileInput.click();
-            fileInput.onchange = () => {
-                 const preview = document.getElementById('filePreview');
-                 if (fileInput.files.length > 0) {
-                     preview.innerHTML = '<h4>Files to Upload:</h4>' + 
-                        Array.from(fileInput.files).map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
-                 }
-            };
+            if (currentUserRole === 'bdm') {
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
+                uploadArea.onclick = () => fileInput.click();
+                fileInput.onchange = () => {
+                     const preview = document.getElementById('filePreview');
+                     if (fileInput.files.length > 0) {
+                         preview.innerHTML = '<h4>Files to Upload:</h4>' + 
+                             Array.from(fileInput.files).map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
+                     }
+                };
+            }
             
             showFiles();
         }
@@ -1758,6 +1857,7 @@
             Array.from(files).forEach(file => formData.append('files', file));
             const pId = document.getElementById('fileProposalId').value;
             if (pId) formData.append('proposalId', pId);
+            formData.append('fileType', 'project'); // BDM uploads project files
             
             try {
                 showLoading();
@@ -1790,34 +1890,22 @@
             const filesHtml = files?.length ? files.map(file => `
                 <div class="action-item">
                     <div class="action-content">
-                        <strong>📄 ${file.originalName}</strong>
+                        <strong>📄 ${file.originalName} ${getFileAccessIndicator(file, 'approved')}</strong>
                         <div class="action-meta">
                             Proposal ID: ${file.proposalId ? file.proposalId : 'General'} | 
                             Size: ${(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
-                            Uploaded: ${formatDate(file.uploadedAt)}
+                            Uploaded: ${formatDate(file.uploadedAt)} by ${file.uploadedByName}
                         </div>
                     </div>
                     <div class="action-buttons">
-                        <button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW</button>
+                        ${file.canView ? `<button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW</button>` : '<span class="btn-disabled btn-sm">Access Restricted</span>'}
+                        ${file.canDownload ? `<button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">DOWNLOAD</button>` : ''}
                         ${file.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>` : ''}
                     </div>
                 </div>
-            `).join('') : '<p>No files found.</p>';
+            `).join('') : '<p>No files found or accessible with your current role.</p>';
             
             document.getElementById('fileListContainer').innerHTML = filesHtml;
-        }
-
-        async function deleteFile(id) {
-            if (!confirm('Are you sure you want to delete this file?')) return;
-            try {
-                const { success } = await apiCall(`files?id=${id}`, { method: 'DELETE' });
-                if (success) {
-                    showFileUpload();
-                    alert('File deleted successfully!');
-                }
-            } catch(err) { 
-                alert(`Error: ${err.message}`); 
-            }
         }
         
         // Additional placeholder functions
