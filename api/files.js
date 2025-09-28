@@ -1,9 +1,22 @@
 const admin = require('./_firebase-admin');
 const { verifyToken } = require('../middleware/auth');
 const util = require('util');
+const multer = require('multer');
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
+
+// Configure multer for file uploads
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Allow all file types for now
+        cb(null, true);
+    }
+});
 
 const allowCors = fn => async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -127,78 +140,98 @@ const handler = async (req, res) => {
         }
 
         if (req.method === 'POST') {
-            // Handle file upload
-            if (!req.files || req.files.length === 0) {
-                return res.status(400).json({ success: false, error: 'No files provided' });
-            }
+            // Use multer middleware to handle file uploads
+            return new Promise((resolve, reject) => {
+                upload.array('files', 10)(req, res, async (err) => {
+                    if (err) {
+                        console.error('Multer error:', err);
+                        return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
+                    }
 
-            const { proposalId, fileType = 'project' } = req.body;
-            const uploadedFiles = [];
+                    try {
+                        // Check if files were uploaded
+                        if (!req.files || req.files.length === 0) {
+                            return res.status(400).json({ success: false, error: 'No files provided' });
+                        }
 
-            // Validate file type permissions
-            if (fileType === 'estimation' && req.user.role !== 'estimator') {
-                return res.status(403).json({ 
-                    success: false, 
-                    error: 'Only estimators can upload estimation files' 
+                        const { proposalId, fileType = 'project' } = req.body;
+                        const uploadedFiles = [];
+
+                        // Validate file type permissions
+                        if (fileType === 'estimation' && req.user.role !== 'estimator') {
+                            return res.status(403).json({ 
+                                success: false, 
+                                error: 'Only estimators can upload estimation files' 
+                            });
+                        }
+
+                        if (fileType === 'project' && req.user.role !== 'bdm') {
+                            return res.status(403).json({ 
+                                success: false, 
+                                error: 'Only BDMs can upload project files' 
+                            });
+                        }
+
+                        for (const file of req.files) {
+                            const fileName = `${proposalId || 'general'}/${Date.now()}-${file.originalname}`;
+                            const fileRef = bucket.file(fileName);
+                            
+                            await fileRef.save(file.buffer, {
+                                metadata: {
+                                    contentType: file.mimetype,
+                                },
+                            });
+
+                            // Make file publicly accessible
+                            await fileRef.makePublic();
+                            
+                            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+                            // Save file metadata to Firestore
+                            const fileData = {
+                                fileName,
+                                originalName: file.originalname,
+                                url: publicUrl,
+                                mimeType: file.mimetype,
+                                fileSize: file.size,
+                                proposalId: proposalId || null,
+                                fileType: fileType,
+                                uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                uploadedByUid: req.user.uid,
+                                uploadedByName: req.user.name,
+                                uploadedByRole: req.user.role
+                            };
+
+                            const docRef = await db.collection('files').add(fileData);
+                            uploadedFiles.push({ id: docRef.id, ...fileData });
+
+                            // Log activity
+                            await db.collection('activities').add({
+                                type: 'file_uploaded',
+                                details: `File uploaded: ${file.originalname}${proposalId ? ` for proposal ${proposalId}` : ''}`,
+                                performedByName: req.user.name,
+                                performedByRole: req.user.role,
+                                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                                proposalId: proposalId || null,
+                                fileId: docRef.id
+                            });
+                        }
+
+                        return res.status(201).json({ 
+                            success: true, 
+                            data: uploadedFiles,
+                            message: `${uploadedFiles.length} file(s) uploaded successfully` 
+                        });
+
+                    } catch (error) {
+                        console.error('File upload error:', error);
+                        return res.status(500).json({ 
+                            success: false, 
+                            error: 'Internal Server Error', 
+                            message: error.message 
+                        });
+                    }
                 });
-            }
-
-            if (fileType === 'project' && req.user.role !== 'bdm') {
-                return res.status(403).json({ 
-                    success: false, 
-                    error: 'Only BDMs can upload project files' 
-                });
-            }
-
-            for (const file of req.files) {
-                const fileName = `${proposalId || 'general'}/${Date.now()}-${file.originalname}`;
-                const fileRef = bucket.file(fileName);
-                
-                await fileRef.save(file.buffer, {
-                    metadata: {
-                        contentType: file.mimetype,
-                    },
-                });
-
-                // Make file publicly accessible
-                await fileRef.makePublic();
-                
-                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-
-                // Save file metadata to Firestore
-                const fileData = {
-                    fileName,
-                    originalName: file.originalname,
-                    url: publicUrl,
-                    mimeType: file.mimetype,
-                    fileSize: file.size,
-                    proposalId: proposalId || null,
-                    fileType: fileType,
-                    uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    uploadedByUid: req.user.uid,
-                    uploadedByName: req.user.name,
-                    uploadedByRole: req.user.role
-                };
-
-                const docRef = await db.collection('files').add(fileData);
-                uploadedFiles.push({ id: docRef.id, ...fileData });
-
-                // Log activity
-                await db.collection('activities').add({
-                    type: 'file_uploaded',
-                    details: `File uploaded: ${file.originalname}${proposalId ? ` for proposal ${proposalId}` : ''}`,
-                    performedByName: req.user.name,
-                    performedByRole: req.user.role,
-                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                    proposalId: proposalId || null,
-                    fileId: docRef.id
-                });
-            }
-
-            return res.status(201).json({ 
-                success: true, 
-                data: uploadedFiles,
-                message: `${uploadedFiles.length} file(s) uploaded successfully` 
             });
         }
 
