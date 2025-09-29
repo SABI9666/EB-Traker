@@ -445,14 +445,14 @@
                 <h1 class="company-title">EDANBROOK</h1>
                 <p class="company-subtitle">Project Management System</p>
                 <div class="info-box">
-                    <h4>Access Levels & Test Accounts</h4>
+                    <h4>Workflow Process</h4>
                     <ul>
-                        <li><strong>BDM:</strong> Open registration for any new email.</li>
-                        <li><strong>Estimator:</strong> Use `estimator@edanbrook.com` or `estimator2@edanbrook.com`</li>
-                        <li><strong>COO:</strong> Use `coo@edanbrook.com` or `coo2@edanbrook.com`</li>
-                        <li><strong>Director:</strong> Use `director@edanbrook.com` or `admin@edanbrook.com`</li>
+                        <li><strong>Step 1:</strong> BDM creates proposal & uploads project files</li>
+                        <li><strong>Step 2:</strong> Estimator adds manhours & BOQ files</li>
+                        <li><strong>Step 3:</strong> COO sets pricing & reviews estimation</li>
+                        <li><strong>Step 4:</strong> Director approves or rejects proposal</li>
+                        <li><strong>Step 5:</strong> BDM submits approved proposal to client</li>
                     </ul>
-                    <p style="font-size: 0.8rem; margin-top: 1rem;">(Any password will work for registration of the above accounts.)</p>
                 </div>
             </div>
             <div class="login-right">
@@ -579,10 +579,10 @@
         }
         const API_BASE = getApiBase();
 
-        const authorizedUsers = { 
-            estimator: ["estimator@edanbrook.com", "estimator2@edanbrook.com"], 
-            coo: ["coo@edanbrook.com", "coo2@edanbrook.com"], 
-            director: ["director@edanbrook.com", "admin@edanbrook.com"] 
+        const authorizedUsers = {
+            estimator: ["estimator@edanbrook.com", "maxwell@edanbrook.com"],
+            coo: ["coo@edanbrook.com", "coo2@edanbrook.com"],
+            director: ["director@edanbrook.com", "ajit@edanbrook.com"]
         };
         let currentUser = null; 
         let currentUserRole = ''; 
@@ -818,9 +818,9 @@
             let actionsHtml = '';
             if (data.actionItems?.length) {
                 const badges = currentUserRole === 'estimator' ? ['Upload BOQ', 'Enter Manhours'] :
-                             currentUserRole === 'coo' ? ['Full Edit Access', 'Download Reports'] :
-                             currentUserRole === 'director' ? ['Override Access', 'Strategic Reports'] :
-                             currentUserRole === 'bdm' ? ['Upload Files'] : [];
+                                 currentUserRole === 'coo' ? ['Full Edit Access', 'Download Reports'] :
+                                 currentUserRole === 'director' ? ['Override Access', 'Strategic Reports'] :
+                                 currentUserRole === 'bdm' ? ['Upload Files'] : [];
                 
                 const badgesHtml = badges.map(badge => `<span class="action-badge">${badge}</span>`).join('');
                 
@@ -1259,7 +1259,7 @@
                                     <p><strong>Priced By:</strong> ${p.pricing.pricedBy}</p>
                                 </div>
                             ` : ''}
-                                                                    
+                                                        
                             ${p.directorApproval ? `
                                 <div class="form-section">
                                     <h4>Director Approval</h4>
@@ -1823,9 +1823,9 @@
                 <div class="action-section">
                     <h3>All Files (Based on Your Access Level)</h3>
                      <div class="info-message">
-                        <strong>File Access Rules:</strong><br>
-                        • Project Files: Accessible to all roles<br>
-                        • Estimation Files: Accessible to Estimator, COO, Director. BDM can access after Director approval.
+                         <strong>File Access Rules:</strong><br>
+                         • Project Files: Accessible to all roles<br>
+                         • Estimation Files: Accessible to Estimator, COO, Director. BDM can access after Director approval.
                     </div>
                     <div id="fileListContainer">Loading files...</div>
                 </div>
