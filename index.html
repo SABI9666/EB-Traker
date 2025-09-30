@@ -964,13 +964,12 @@
             `;
         }
         
-        // Create Proposal with File Upload (BDM only uploads project files)
+        // 1. Update the showCreateProposalModal function to include link upload
         function showCreateProposalModal() {
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
                 'Joist Detailing', 'As-built Drawings'
             ];
-
             const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content">
@@ -1045,6 +1044,17 @@
                                 <div id="filePreview"></div>
                             </div>
                             
+                            <div class="form-section">
+                                <h4>Add Project Links</h4>
+                                <div id="linksContainer">
+                                    <div class="link-input-group" style="margin-bottom: 1rem;">
+                                        <input type="url" class="form-control" placeholder="Enter URL (e.g., https://example.com/document)" style="margin-bottom: 0.5rem;">
+                                        <input type="text" class="form-control" placeholder="Link title/description (optional)">
+                                    </div>
+                                </div>
+                                <button type="button" onclick="addLinkField()" class="btn btn-outline btn-sm" style="width: auto;">+ Add Another Link</button>
+                            </div>
+                            
                             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                                 <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
                                 <button type="submit" class="btn btn-primary">Create Proposal</button>
@@ -1076,6 +1086,17 @@
             document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
+                // Collect project links
+                const linkInputs = document.querySelectorAll('#linksContainer .link-input-group');
+                const projectLinks = [];
+                linkInputs.forEach(group => {
+                    const url = group.querySelector('input[type="url"]').value;
+                    const title = group.querySelector('input[type="text"]').value;
+                    if (url) {
+                        projectLinks.push({ url, title: title || url, description: title });
+                    }
+                });
+                
                 const formData = {
                     projectName: document.getElementById('projectName').value,
                     clientCompany: document.getElementById('clientCompany').value,
@@ -1083,7 +1104,8 @@
                     country: document.getElementById('country').value,
                     timeline: document.getElementById('timeline').value,
                     priority: document.getElementById('priority').value,
-                    scopeOfWork: document.getElementById('scopeOfWork').value
+                    scopeOfWork: document.getElementById('scopeOfWork').value,
+                    projectLinks: projectLinks
                 };
                 
                 try {
@@ -1098,16 +1120,28 @@
                     if (response.success && response.data) {
                         const proposalId = response.data.id;
                         
-                        // Upload files if any (BDM only uploads project files)
+                        // Upload files if any
                         if (selectedFiles.length > 0) {
                             const fileFormData = new FormData();
                             selectedFiles.forEach(file => fileFormData.append('files', file));
                             fileFormData.append('proposalId', proposalId);
-                            fileFormData.append('fileType', 'project'); // BDM uploads project files
+                            fileFormData.append('fileType', 'project');
                             
                             await apiCall('files', {
                                 method: 'POST',
                                 body: fileFormData
+                            });
+                        }
+                        
+                        // Upload links if any
+                        if (projectLinks.length > 0) {
+                            await apiCall('files', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    links: projectLinks,
+                                    proposalId: proposalId,
+                                    fileType: 'link'
+                                })
                             });
                         }
                         
@@ -1121,6 +1155,19 @@
                     hideLoading();
                 }
             });
+        }
+        
+        // 2. Add helper function for adding link fields
+        function addLinkField() {
+            const container = document.getElementById('linksContainer');
+            const newLinkGroup = document.createElement('div');
+            newLinkGroup.className = 'link-input-group';
+            newLinkGroup.style.marginBottom = '1rem';
+            newLinkGroup.innerHTML = `
+                <input type="url" class="form-control" placeholder="Enter URL (e.g., https://example.com/document)" style="margin-bottom: 0.5rem;">
+                <input type="text" class="form-control" placeholder="Link title/description (optional)">
+            `;
+            container.appendChild(newLinkGroup);
         }
         
         // View Proposal with file access control
@@ -1144,10 +1191,11 @@
             }
         }
 
-        // Render proposal detail modal with file access control
+        // 3. Update renderProposalDetailModal to display links
         function renderProposalDetailModal(p, files = []) {
             const projectFiles = files.filter(f => !f.fileType || f.fileType === 'project');
             const estimationFiles = files.filter(f => f.fileType === 'estimation');
+            const linkFiles = files.filter(f => f.fileType === 'link');
             let actionsHtml = '';
 
             // Role-based actions
@@ -1164,9 +1212,40 @@
                 actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${p.id}')">Submit to Client</button>`;
             }
 
-            // BDM delete button
+            // BDM delete button - only for own proposals
             if (currentUserRole === 'bdm' && p.createdByUid === currentUser.uid) {
                 actionsHtml += ` <button class="btn btn-danger btn-sm" onclick="deleteProposal('${p.id}')">Delete Proposal</button>`;
+            }
+            
+            // Build links section
+            let linksHtml = '';
+            if (linkFiles.length > 0 || (p.projectLinks && p.projectLinks.length > 0)) {
+                const allLinks = [
+                    ...linkFiles,
+                    ...(p.projectLinks || []).map(link => ({
+                        url: link.url,
+                        originalName: link.title || link.url,
+                        linkDescription: link.description || ''
+                    }))
+                ];
+                
+                linksHtml = `
+                    <div class="form-section">
+                        <h4>Project Links 🔗</h4>
+                        ${allLinks.map(link => `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border-radius: 5px; margin-bottom: 0.5rem; border: 1px solid var(--border);">
+                                <div style="flex: 1;">
+                                    <span>🔗 ${link.originalName || link.url}</span>
+                                    ${link.linkDescription ? `<div style="font-size: 0.85rem; color: var(--text-light);">${link.linkDescription}</div>` : ''}
+                                </div>
+                                <div>
+                                    <button class="btn btn-outline btn-sm" onclick="window.open('${link.url}', '_blank')">Open Link</button>
+                                    ${link.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${link.id}')">Delete</button>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
             }
             
             // Build estimation files section with access control
@@ -1200,7 +1279,6 @@
                 }
             }
 
-
             const modalHtml = `
                 <div class="modal-overlay">
                     <div class="modal-content" style="max-width: 1000px;">
@@ -1222,6 +1300,9 @@
                                 <p><strong>Country:</strong> ${p.country || 'Not specified'}</p>
                                 <p><strong>Created by:</strong> ${p.createdByName} on ${formatDate(p.createdAt)}</p>
                             </div>
+                            
+                            ${linksHtml}
+                            
                             <div class="form-section">
                                 <h4>Project Files ${getFileAccessIndicator({ fileType: 'project' }, p.status)}</h4>
                                 ${projectFiles.length ? projectFiles.map(file => `
@@ -1235,6 +1316,7 @@
                                     </div>
                                 `).join('') : '<p>No project files uploaded yet.</p>'}
                             </div>
+                            
                             ${p.estimation ? `
                                 <div class="form-section">
                                     <h4>Estimation Details</h4>
@@ -1793,7 +1875,7 @@
             }
         }
 
-        // File Management Functions with Role-based Access Control
+        // 4. Update showFileUpload to handle links
         function showFileUpload() {
             setActiveNav('nav-files');
             const content = `
@@ -1809,14 +1891,33 @@
                         <label>Link to Proposal (Optional)</label>
                         <input type="text" id="fileProposalId" class="form-control" placeholder="Enter Proposal ID">
                     </div>
-                    <div class="upload-area" id="uploadArea">
-                        <div class="upload-icon">📤</div>
-                        <p>Upload project files, RFQ, tender documents</p>
-                        <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">All formats supported</div>
-                        <input type="file" id="fileInput" multiple style="display: none;">
+                    
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <button onclick="showFileUploadTab()" class="btn btn-outline" id="fileTabBtn">Upload Files</button>
+                        <button onclick="showLinkUploadTab()" class="btn btn-outline" id="linkTabBtn">Add Links</button>
                     </div>
-                    <div id="filePreview"></div>
-                    <button class="btn btn-primary" onclick="handleFileUpload()" style="margin-top: 1rem; width: auto;">Upload Files</button>
+                    
+                    <div id="fileUploadTab">
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">📤</div>
+                            <p>Upload project files, RFQ, tender documents</p>
+                            <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">All formats supported</div>
+                            <input type="file" id="fileInput" multiple style="display: none;">
+                        </div>
+                        <div id="filePreview"></div>
+                        <button class="btn btn-primary" onclick="handleFileUpload()" style="margin-top: 1rem; width: auto;">Upload Files</button>
+                    </div>
+                    
+                    <div id="linkUploadTab" style="display: none;">
+                        <div id="linksUploadContainer">
+                            <div class="link-input-group" style="margin-bottom: 1rem;">
+                                <input type="url" class="form-control" placeholder="Enter URL" style="margin-bottom: 0.5rem;">
+                                <input type="text" class="form-control" placeholder="Link title/description">
+                            </div>
+                        </div>
+                        <button type="button" onclick="addUploadLinkField()" class="btn btn-outline btn-sm" style="width: auto;">+ Add Another Link</button>
+                        <button class="btn btn-primary" onclick="handleLinkUpload()" style="margin-top: 1rem; width: auto; margin-left: 1rem;">Save Links</button>
+                    </div>
                 </div>
                 ` : ''}
                 
@@ -1824,8 +1925,9 @@
                     <h3>All Files (Based on Your Access Level)</h3>
                      <div class="info-message">
                          <strong>File Access Rules:</strong><br>
-                         • Project Files: Accessible to all roles<br>
-                         • Estimation Files: Accessible to Estimator, COO, Director. BDM can access after Director approval.
+                         • Project Files: ${currentUserRole === 'bdm' ? 'Only your own project files' : 'All project files'}<br>
+                         • Estimation Files: ${currentUserRole === 'bdm' ? 'Your approved proposals only' : 'Full access'}<br>
+                         • Links: ${currentUserRole === 'bdm' ? 'Only links from your proposals' : 'All project links'}
                     </div>
                     <div id="fileListContainer">Loading files...</div>
                 </div>
@@ -1844,6 +1946,7 @@
                              Array.from(fileInput.files).map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
                      }
                 };
+                showFileUploadTab(); // Show file upload by default
             }
             
             showFiles();
@@ -1886,24 +1989,104 @@
             }
         }
         
+        // 5. Add tab switching functions
+        function showFileUploadTab() {
+            document.getElementById('fileUploadTab').style.display = 'block';
+            document.getElementById('linkUploadTab').style.display = 'none';
+            document.getElementById('fileTabBtn').classList.add('btn-primary');
+            document.getElementById('fileTabBtn').classList.remove('btn-outline');
+            document.getElementById('linkTabBtn').classList.add('btn-outline');
+            document.getElementById('linkTabBtn').classList.remove('btn-primary');
+        }
+
+        function showLinkUploadTab() {
+            document.getElementById('fileUploadTab').style.display = 'none';
+            document.getElementById('linkUploadTab').style.display = 'block';
+            document.getElementById('linkTabBtn').classList.add('btn-primary');
+            document.getElementById('linkTabBtn').classList.remove('btn-outline');
+            document.getElementById('fileTabBtn').classList.add('btn-outline');
+            document.getElementById('fileTabBtn').classList.remove('btn-primary');
+        }
+
+        function addUploadLinkField() {
+            const container = document.getElementById('linksUploadContainer');
+            const newLinkGroup = document.createElement('div');
+            newLinkGroup.className = 'link-input-group';
+            newLinkGroup.style.marginBottom = '1rem';
+            newLinkGroup.innerHTML = `
+                <input type="url" class="form-control" placeholder="Enter URL" style="margin-bottom: 0.5rem;">
+                <input type="text" class="form-control" placeholder="Link title/description">
+            `;
+            container.appendChild(newLinkGroup);
+        }
+
+        // 6. Add link upload handler
+        async function handleLinkUpload() {
+            const linkGroups = document.querySelectorAll('#linksUploadContainer .link-input-group');
+            const links = [];
+            
+            linkGroups.forEach(group => {
+                const url = group.querySelector('input[type="url"]').value;
+                const title = group.querySelector('input[type="text"]').value;
+                if (url) {
+                    links.push({ url, title: title || url, description: title });
+                }
+            });
+            
+            if (links.length === 0) {
+                return alert('Please add at least one link.');
+            }
+            
+            const proposalId = document.getElementById('fileProposalId').value;
+            
+            try {
+                showLoading();
+                const { success } = await apiCall('files', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        links: links,
+                        proposalId: proposalId || null,
+                        fileType: 'link'
+                    })
+                });
+                if (success) {
+                    alert('Links added successfully!');
+                    showFileUpload(); // Refresh the page
+                }
+            } catch (error) {
+                alert(`Failed to add links: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 7. Update renderFiles to show links properly
         function renderFiles(files) {
-            const filesHtml = files?.length ? files.map(file => `
-                <div class="action-item">
-                    <div class="action-content">
-                        <strong>📄 ${file.originalName} ${getFileAccessIndicator(file, 'approved')}</strong>
-                        <div class="action-meta">
-                            Proposal ID: ${file.proposalId ? file.proposalId : 'General'} | 
-                            Size: ${(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
-                            Uploaded: ${formatDate(file.uploadedAt)} by ${file.uploadedByName}
+            const filesHtml = files?.length ? files.map(file => {
+                const isLink = file.fileType === 'link';
+                const icon = isLink ? '🔗' : '📄';
+                const fileInfo = isLink ? 
+                    `Link: ${file.originalName}` : 
+                    `File: ${file.originalName} | Size: ${(file.fileSize / 1024 / 1024).toFixed(2)} MB`;
+                
+                return `
+                    <div class="action-item">
+                        <div class="action-content">
+                            <strong>${icon} ${fileInfo}</strong>
+                            <div class="action-meta">
+                                Proposal ID: ${file.proposalId ? file.proposalId : 'General'} | 
+                                Uploaded: ${formatDate(file.uploadedAt)} by ${file.uploadedByName}
+                                ${file.linkDescription ? `<br>Description: ${file.linkDescription}` : ''}
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            ${file.canView ? `<button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">${isLink ? 'OPEN LINK' : 'VIEW'}</button>` : '<span class="btn-disabled btn-sm">Access Restricted</span>'}
+                            ${!isLink && file.canDownload ? `<button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">DOWNLOAD</button>` : ''}
+                            ${file.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>` : ''}
                         </div>
                     </div>
-                    <div class="action-buttons">
-                        ${file.canView ? `<button class="btn btn-outline btn-sm" onclick="window.open('${file.url}', '_blank')">VIEW</button>` : '<span class="btn-disabled btn-sm">Access Restricted</span>'}
-                        ${file.canDownload ? `<button class="btn btn-primary btn-sm" onclick="downloadFile('${file.url}', '${file.originalName}')">DOWNLOAD</button>` : ''}
-                        ${file.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteFile('${file.id}')">Delete</button>` : ''}
-                    </div>
-                </div>
-            `).join('') : '<p>No files found or accessible with your current role.</p>';
+                `;
+            }).join('') : '<p>No files found or accessible with your current role.</p>';
             
             document.getElementById('fileListContainer').innerHTML = filesHtml;
         }
