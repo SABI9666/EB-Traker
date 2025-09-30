@@ -44,15 +44,32 @@ const handler = async (req, res) => {
             if (id) {
                 const doc = await db.collection('proposals').doc(id).get();
                 if (!doc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
-                return res.status(200).json({ success: true, data: { id: doc.id, ...doc.data() } });
+                
+                const proposalData = doc.data();
+                
+                // BDM isolation: Check if BDM can access this proposal
+                if (req.user.role === 'bdm' && proposalData.createdByUid !== req.user.uid) {
+                    return res.status(403).json({ success: false, error: 'Access denied. You can only view your own proposals.' });
+                }
+                
+                return res.status(200).json({ success: true, data: { id: doc.id, ...proposalData } });
             }
-            const snapshot = await db.collection('proposals').orderBy('createdAt', 'desc').get();
+            
+            // Get all proposals with BDM isolation
+            let query = db.collection('proposals').orderBy('createdAt', 'desc');
+            
+            // BDMs only see their own proposals
+            if (req.user.role === 'bdm') {
+                query = query.where('createdByUid', '==', req.user.uid);
+            }
+            
+            const snapshot = await query.get();
             const proposals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             return res.status(200).json({ success: true, data: proposals });
         }
 
         if (req.method === 'POST') {
-            const { projectName, clientCompany, scopeOfWork, projectType, priority, country, timeline } = req.body;
+            const { projectName, clientCompany, scopeOfWork, projectType, priority, country, timeline, projectLinks } = req.body;
             if (!projectName || !clientCompany || !scopeOfWork) {
                 return res.status(400).json({ success: false, error: 'Missing required fields' });
             }
@@ -65,6 +82,7 @@ const handler = async (req, res) => {
                 priority: priority || 'Medium',
                 country: country || 'Not Specified',
                 timeline: timeline || 'Not Specified',
+                projectLinks: projectLinks || [], // Store project links
                 status: 'pending_estimation',
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 createdByUid: req.user.uid,
@@ -78,6 +96,7 @@ const handler = async (req, res) => {
                 details: `New proposal created: ${projectName} for ${clientCompany}`,
                 performedByName: req.user.name,
                 performedByRole: req.user.role,
+                performedByUid: req.user.uid, // Add UID for activity isolation
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 proposalId: docRef.id, projectName, clientCompany
             });
@@ -95,10 +114,24 @@ const handler = async (req, res) => {
             if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
             
             const proposal = proposalDoc.data();
+            
+            // BDM isolation: Check if BDM can modify this proposal
+            if (req.user.role === 'bdm' && proposal.createdByUid !== req.user.uid) {
+                return res.status(403).json({ success: false, error: 'Access denied. You can only modify your own proposals.' });
+            }
+            
             let updates = {};
             let activityDetail = '';
 
             switch (action) {
+                case 'add_links':
+                    // Allow adding/updating project links
+                    updates = { 
+                        projectLinks: data.links || [],
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    activityDetail = `Added ${data.links?.length || 0} project links`;
+                    break;
                 case 'add_estimation':
                     updates = { status: 'pending_pricing', estimation: { ...data, estimatedBy: req.user.name, estimatedAt: new Date().toISOString() } };
                     activityDetail = `Estimation added: ${data.totalHours} hours`;
@@ -128,6 +161,7 @@ const handler = async (req, res) => {
                         await db.collection('notifications').add({
                             type: 'proposal_approved',
                             recipientRole: role,
+                            recipientUid: role === 'bdm' ? proposal.createdByUid : null, // Target specific BDM
                             proposalId: id,
                             message: `${proposal.projectName} has been approved by Director`,
                             createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -151,6 +185,7 @@ const handler = async (req, res) => {
                     await db.collection('notifications').add({
                         type: 'revision_required',
                         recipientRole: data.requiresRevisionBy,
+                        recipientUid: data.requiresRevisionBy === 'bdm' ? proposal.createdByUid : null, // Target specific BDM
                         proposalId: id,
                         message: `Revision required for ${proposal.projectName}: ${data.comments}`,
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -181,8 +216,15 @@ const handler = async (req, res) => {
             
             await proposalRef.update(updates);
             await db.collection('activities').add({
-                type: `proposal_${action}`, details: activityDetail, performedByName: req.user.name, performedByRole: req.user.role,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(), proposalId: id, projectName: proposal.projectName, clientCompany: proposal.clientCompany
+                type: `proposal_${action}`, 
+                details: activityDetail, 
+                performedByName: req.user.name, 
+                performedByRole: req.user.role,
+                performedByUid: req.user.uid, // Add UID for activity isolation
+                timestamp: admin.firestore.FieldValue.serverTimestamp(), 
+                proposalId: id, 
+                projectName: proposal.projectName, 
+                clientCompany: proposal.clientCompany
             });
             return res.status(200).json({ success: true, message: 'Proposal updated successfully' });
         }
@@ -206,6 +248,10 @@ const handler = async (req, res) => {
             if (!filesSnapshot.empty) {
                 const deletePromises = filesSnapshot.docs.map(doc => {
                     const fileData = doc.data();
+                    // Skip deletion for link-type files (they don't have physical storage)
+                    if (fileData.fileType === 'link') {
+                        return doc.ref.delete(); // Just delete from Firestore
+                    }
                     return Promise.all([
                         bucket.file(fileData.fileName).delete(), // Delete from storage
                         doc.ref.delete() // Delete from 'files' collection
