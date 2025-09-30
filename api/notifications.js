@@ -20,14 +20,21 @@ const handler = async (req, res) => {
         await util.promisify(verifyToken)(req, res);
         
         if (req.method === 'GET') {
-            // Get notifications for the current user's role
-            const snapshot = await db.collection('notifications')
-                .where('recipientRole', '==', req.user.role)
+            // Get notifications for the current user
+            let query = db.collection('notifications')
                 .where('isRead', '==', false)
                 .orderBy('createdAt', 'desc')
-                .limit(10)
-                .get();
+                .limit(10);
+            
+            // For BDMs, filter notifications to only those meant for them specifically
+            if (req.user.role === 'bdm') {
+                query = query.where('recipientUid', '==', req.user.uid);
+            } else {
+                // For other roles, use role-based filtering
+                query = query.where('recipientRole', '==', req.user.role);
+            }
                         
+            const snapshot = await query.get();
             const notifications = snapshot.docs.map(doc => ({ 
                 id: doc.id, 
                 ...doc.data() 
@@ -41,6 +48,25 @@ const handler = async (req, res) => {
             const { id } = req.query;
             if (!id) {
                 return res.status(400).json({ success: false, error: 'Notification ID required' });
+            }
+            
+            // Verify the notification belongs to this user
+            const notificationDoc = await db.collection('notifications').doc(id).get();
+            if (!notificationDoc.exists) {
+                return res.status(404).json({ success: false, error: 'Notification not found' });
+            }
+            
+            const notificationData = notificationDoc.data();
+            
+            // Check if user can access this notification
+            if (req.user.role === 'bdm') {
+                if (notificationData.recipientUid !== req.user.uid) {
+                    return res.status(403).json({ success: false, error: 'Access denied to this notification' });
+                }
+            } else {
+                if (notificationData.recipientRole !== req.user.role) {
+                    return res.status(403).json({ success: false, error: 'Access denied to this notification' });
+                }
             }
                         
             await db.collection('notifications').doc(id).update({
