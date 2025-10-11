@@ -966,7 +966,12 @@
             `;
         }
         
-        // 1. Update the showCreateProposalModal function to include link upload
+        // ============================================
+        // COMPLETE JAVASCRIPT UPDATES FOR index.html
+        // Replace the corresponding functions in your index (9).html file
+        // ============================================
+
+        // 1. UPDATED showCreateProposalModal - WITH COMMENTS FIELD
         function showCreateProposalModal() {
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
@@ -1031,6 +1036,11 @@
                             <div class="form-group">
                                 <label>Scope of Work *</label>
                                 <textarea id="scopeOfWork" class="form-control" rows="4" placeholder="Describe the project scope..." required></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Additional Comments</label>
+                                <textarea id="proposalComments" class="form-control" rows="3" placeholder="Enter any additional notes or comments..."></textarea>
                             </div>
                             
                             <div class="form-section">
@@ -1107,6 +1117,7 @@
                     timeline: document.getElementById('timeline').value,
                     priority: document.getElementById('priority').value,
                     scopeOfWork: document.getElementById('scopeOfWork').value,
+                    comments: document.getElementById('proposalComments').value, // NEW: Include comments
                     projectLinks: projectLinks
                 };
                 
@@ -1159,7 +1170,7 @@
             });
         }
         
-        // 2. Add helper function for adding link fields
+        // Add helper function for adding link fields
         function addLinkField() {
             const container = document.getElementById('linksContainer');
             const newLinkGroup = document.createElement('div');
@@ -1192,8 +1203,142 @@
                 hideLoading();
             }
         }
-
-        // 3. Update renderProposalDetailModal to display links
+        
+        // 2. NEW FUNCTION - Edit Proposal Modal for BDM
+        function showEditProposalModal(proposalId) {
+            apiCall(`proposals?id=${proposalId}`).then(response => {
+                if (!response.success || !response.data) {
+                    alert('Failed to load proposal');
+                    return;
+                }
+        
+                const p = response.data;
+        
+                if (p.status !== 'pending_estimation') {
+                    alert('Cannot edit proposal after estimation has been submitted.');
+                    return;
+                }
+        
+                const projectTypes = [
+                    'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
+                    'Joist Detailing', 'As-built Drawings'
+                ];
+        
+                const modalHtml = `
+                    <div class="modal-overlay">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2>Edit Proposal</h2>
+                                <div class="subtitle">Update project details</div>
+                            </div>
+                            
+                            <form id="editProposalForm" class="modal-form">
+                                <div class="form-section">
+                                    <h4>Project Information</h4>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Project Name *</label>
+                                            <input type="text" id="editProjectName" class="form-control" value="${p.projectName}" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Client Company *</label>
+                                            <input type="text" id="editClientCompany" class="form-control" value="${p.clientCompany}" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Project Type</label>
+                                            <select id="editProjectType" class="form-control">
+                                                <option value="">Select Type</option>
+                                                ${projectTypes.map(type => `<option value="${type}" ${p.projectType === type ? 'selected' : ''}>${type}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Timeline (Days)</label>
+                                            <input type="text" id="editTimeline" class="form-control" value="${p.timeline || ''}">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Country</label>
+                                            <select id="editCountry" class="form-control">
+                                                <option value="">Select Country</option>
+                                                ${['Australia', 'USA', 'Canada', 'UK'].map(country => 
+                                                     `<option value="${country}" ${p.country === country ? 'selected' : ''}>${country}</option>`
+                                                ).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Priority</label>
+                                            <select id="editPriority" class="form-control">
+                                                ${['Low', 'Medium', 'High'].map(priority => 
+                                                     `<option value="${priority}" ${p.priority === priority ? 'selected' : ''}>${priority}</option>`
+                                                ).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Scope of Work *</label>
+                                    <textarea id="editScopeOfWork" class="form-control" rows="4" required>${p.scopeOfWork}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Additional Comments</label>
+                                    <textarea id="editComments" class="form-control" rows="3">${p.comments || ''}</textarea>
+                                </div>
+                                
+                                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Update Proposal</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                `;
+        
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+                document.getElementById('editProposalForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+        
+                    const updatedData = {
+                        projectName: document.getElementById('editProjectName').value,
+                        clientCompany: document.getElementById('editClientCompany').value,
+                        projectType: document.getElementById('editProjectType').value,
+                        country: document.getElementById('editCountry').value,
+                        timeline: document.getElementById('editTimeline').value,
+                        priority: document.getElementById('editPriority').value,
+                        scopeOfWork: document.getElementById('editScopeOfWork').value,
+                        comments: document.getElementById('editComments').value
+                    };
+        
+                    try {
+                        showLoading();
+                        const response = await apiCall(`proposals?id=${proposalId}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                action: 'edit_proposal',
+                                data: updatedData
+                            })
+                        });
+        
+                        if (response.success) {
+                            alert('Proposal updated successfully!');
+                            closeModal();
+                            showProposals();
+                        }
+                    } catch (error) {
+                        alert(`Update failed: ${error.message}`);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            });
+        }
+        
+        // 7. UPDATED renderProposalDetailModal - WITH ALL NEW FEATURES
         function renderProposalDetailModal(p, files = []) {
             const projectFiles = files.filter(f => !f.fileType || f.fileType === 'project');
             const estimationFiles = files.filter(f => f.fileType === 'estimation');
@@ -1212,6 +1357,20 @@
                 `;
             } else if (currentUserRole === 'bdm' && p.status === 'approved') {
                 actionsHtml = `<button class="btn btn-success" onclick="submitToClient('${p.id}')">Submit to Client</button>`;
+            }
+
+            // NEW: Edit button for BDM (only when status is pending_estimation)
+            if (currentUserRole === 'bdm' && p.createdByUid === currentUser.uid && p.status === 'pending_estimation') {
+                actionsHtml += ` <button class="btn btn-outline" onclick="showEditProposalModal('${p.id}')">Edit Proposal</button>`;
+            }
+
+            // NEW: Job Won/Lost buttons for BDM
+            if (currentUserRole === 'bdm' && p.createdByUid === currentUser.uid && 
+                (p.status === 'submitted_to_client' || p.status === 'approved')) {
+                actionsHtml += `
+                    <button class="btn btn-success" onclick="markJobWon('${p.id}')">Job Won</button>
+                    <button class="btn btn-danger" onclick="markJobLost('${p.id}')">Job Lost</button>
+                `;
             }
 
             // BDM delete button - only for own proposals
@@ -1298,6 +1457,7 @@
                             <div class="form-section">
                                 <h4>Project Details</h4>
                                 <p><strong>Scope of Work:</strong> ${p.scopeOfWork}</p>
+                                ${p.comments ? `<p><strong>Comments:</strong> ${p.comments}</p>` : ''}
                                 <p><strong>Timeline:</strong> ${p.timeline || 'Not specified'}</p>
                                 <p><strong>Country:</strong> ${p.country || 'Not specified'}</p>
                                 <p><strong>Created by:</strong> ${p.createdByName} on ${formatDate(p.createdAt)}</p>
@@ -1323,6 +1483,7 @@
                                 <div class="form-section">
                                     <h4>Estimation Details</h4>
                                     <p><strong>Total Hours:</strong> ${p.estimation.totalHours}</p>
+                                    <p><strong>Tonnage:</strong> ${p.estimation.tonnage || 0} tons</p>
                                     <p><strong>Design Hours:</strong> ${p.estimation.designHours || 0}</p>
                                     <p><strong>Detailing Hours:</strong> ${p.estimation.detailingHours || 0}</p>
                                     <p><strong>Checking Hours:</strong> ${p.estimation.checkingHours || 0}</p>
@@ -1352,6 +1513,15 @@
                                     <p><strong>By:</strong> ${p.directorApproval.approvedBy || p.directorApproval.rejectedBy}</p>
                                 </div>
                             ` : ''}
+
+                            ${p.jobOutcome ? `
+                                <div class="form-section">
+                                    <h4>Job Outcome</h4>
+                                    <p><strong>Result:</strong> <span style="text-transform: uppercase; font-weight: bold; color: ${p.jobOutcome.result === 'won' ? 'var(--success)' : 'var(--danger)'};">${p.jobOutcome.result}</span></p>
+                                    ${p.jobOutcome.reason ? `<p><strong>Reason:</strong> ${p.jobOutcome.reason}</p>` : ''}
+                                    <p><strong>Marked By:</strong> ${p.jobOutcome.markedBy} on ${formatDate({ seconds: new Date(p.jobOutcome.markedAt).getTime() / 1000 })}</p>
+                                </div>
+                            ` : ''}
                         </div>
                         
                         <div style="display: flex; gap: 1rem; justify-content: flex-end; align-items: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
@@ -1365,7 +1535,7 @@
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
 
-        // Estimator Manhours Modal (only estimator can upload estimation files)
+        // 3. UPDATED showEstimationModal - WITH TONNAGE FIELD
         function showEstimationModal(id) {
             closeModal();
             const modalHtml = `
@@ -1405,6 +1575,10 @@
                                     <div class="form-group">
                                         <label>Total Hours</label>
                                         <input type="number" id="totalHours" class="form-control" readonly style="background: var(--light-blue);" value="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tonnage (tons)</label>
+                                        <input type="number" id="tonnage" class="form-control" placeholder="0" step="0.01" value="0">
                                     </div>
                                 </div>
                             </div>
@@ -1516,7 +1690,7 @@
             });
         }
 
-        // Save Estimation with proper data collection (only estimator can upload estimation files)
+        // 4. UPDATED saveEstimation - WITH TONNAGE
         async function saveEstimation(proposalId) {
             const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(cb => cb.value);
             
@@ -1527,6 +1701,7 @@
             const revisionHours = document.getElementById('revisionHours').value || 0;
             const pmHours = document.getElementById('pmHours').value || 0;
             const totalHours = document.getElementById('totalHours').value || 0;
+            const tonnage = document.getElementById('tonnage').value || 0; // NEW: Get tonnage
             
             // Validate input
             if (totalHours == 0) {
@@ -1546,6 +1721,7 @@
                 revisionHours,
                 pmHours,
                 totalHours,
+                tonnage, // NEW: Include tonnage
                 services,
                 quoteType: document.getElementById('quoteType').value,
                 deliveryMethod: document.getElementById('deliveryMethod').value,
@@ -1555,13 +1731,13 @@
             try {
                 showLoading();
                 
-                // First upload BOQ files if any (only estimator can upload estimation files)
+                // First upload BOQ files if any
                 const fileInput = document.getElementById('boqFileInput');
                 if (fileInput.files.length > 0) {
                     const formData = new FormData();
                     Array.from(fileInput.files).forEach(file => formData.append('files', file));
                     formData.append('proposalId', proposalId);
-                    formData.append('fileType', 'estimation'); // Estimator uploads estimation files
+                    formData.append('fileType', 'estimation'); 
                     
                     await apiCall('files', { method: 'POST', body: formData });
                 }
@@ -1876,8 +2052,65 @@
                 }, 'Proposal submitted to client successfully!'); 
             }
         }
+        
+        // 5. NEW FUNCTION - Mark Job as Won
+        async function markJobWon(proposalId) {
+            if (!confirm('Mark this job as WON? This will notify COO and Director.')) {
+                return;
+            }
+        
+            try {
+                showLoading();
+                const response = await apiCall(`proposals?id=${proposalId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        action: 'mark_job_won',
+                        data: {}
+                    })
+                });
+        
+                if (response.success) {
+                    alert('Job marked as WON! Notifications sent to COO and Director.');
+                    closeModal();
+                    showDashboard();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 6. NEW FUNCTION - Mark Job as Lost
+        async function markJobLost(proposalId) {
+            const reason = prompt('Please provide a reason for losing this job:');
+            if (!reason) {
+                return;
+            }
+        
+            try {
+                showLoading();
+                const response = await apiCall(`proposals?id=${proposalId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        action: 'mark_job_lost',
+                        data: { reason }
+                    })
+                });
+        
+                if (response.success) {
+                    alert('Job marked as LOST. Notifications sent to COO and Director.');
+                    closeModal();
+                    showDashboard();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
 
-        // 4. Update showFileUpload to handle links
+        // Update showFileUpload to handle links
         function showFileUpload() {
             setActiveNav('nav-files');
             const content = `
@@ -1991,7 +2224,7 @@
             }
         }
         
-        // 5. Add tab switching functions
+        // Add tab switching functions
         function showFileUploadTab() {
             document.getElementById('fileUploadTab').style.display = 'block';
             document.getElementById('linkUploadTab').style.display = 'none';
@@ -2022,7 +2255,7 @@
             container.appendChild(newLinkGroup);
         }
 
-        // 6. Add link upload handler
+        // Add link upload handler
         async function handleLinkUpload() {
             const linkGroups = document.querySelectorAll('#linksUploadContainer .link-input-group');
             const links = [];
@@ -2062,7 +2295,7 @@
             }
         }
         
-        // 7. Update renderFiles to show links properly
+        // Update renderFiles to show links properly
         function renderFiles(files) {
             const filesHtml = files?.length ? files.map(file => {
                 const isLink = file.fileType === 'link';
