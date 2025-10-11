@@ -32,14 +32,20 @@ const handler = async (req, res) => {
             const proposalsSnapshot = await proposalsQuery.get();
             const proposals = proposalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            const wonProposals = proposals.filter(p => p.status === 'submitted_to_client' || p.status === 'won');
-            const totalWonValue = wonProposals.reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
+            // Calculate statistics
+            const wonProposals = proposals.filter(p => p.status === 'won');
+            const lostProposals = proposals.filter(p => p.status === 'lost');
+            const submittedProposals = proposals.filter(p => p.status === 'submitted_to_client');
+            const allWonProposals = proposals.filter(p => p.status === 'submitted_to_client' || p.status === 'won');
+            
+            const totalWonValue = allWonProposals.reduce((sum, p) => sum + (parseFloat(p.pricing?.quoteValue) || 0), 0);
             const totalProposalsCount = proposals.length;
             const winRate = totalProposalsCount > 0 ? ((wonProposals.length / totalProposalsCount) * 100).toFixed(0) : 0;
-            const avgMargin = wonProposals.length > 0 ? (wonProposals.reduce((sum, p) => sum + (p.pricing?.profitMargin || 0), 0) / wonProposals.length).toFixed(0) : 0;
+            const avgMargin = allWonProposals.length > 0 ? (allWonProposals.reduce((sum, p) => sum + (parseFloat(p.pricing?.profitMargin) || 0), 0) / allWonProposals.length).toFixed(0) : 0;
             const pipelineValue = proposals.filter(p => !['submitted_to_client', 'won', 'rejected', 'lost'].includes(p.status))
-                                         .reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
+                                         .reduce((sum, p) => sum + (parseFloat(p.pricing?.quoteValue) || 0), 0);
 
+            // Get action items based on role
             let actionItemsQuery;
             switch(userRole) {
                 case 'estimator':
@@ -92,65 +98,76 @@ const handler = async (req, res) => {
             if (userRole === 'bdm') {
                 // BDMs only see activities related to their proposals
                 const proposalIds = proposals.map(p => p.id);
-                if (proposalIds.length > 0) {
+                if (proposalIds.length > 0 && proposalIds.length <= 10) {
                     activitiesQuery = activitiesQuery.where('proposalId', 'in', proposalIds);
+                } else if (proposalIds.length > 10) {
+                    // Firestore 'in' operator limitation workaround
+                    const snapshot = await db.collection('activities')
+                        .orderBy('timestamp', 'desc')
+                        .limit(20)
+                        .get();
+                    const recentActivities = snapshot.docs
+                        .map(doc => ({ id: doc.id, ...doc.data() }))
+                        .filter(activity => proposalIds.includes(activity.proposalId))
+                        .slice(0, 5);
+                    
+                    return res.status(200).json({ 
+                        success: true, 
+                        data: buildDashboardData(
+                            userRole, 
+                            proposals, 
+                            wonProposals, 
+                            lostProposals, 
+                            submittedProposals,
+                            allWonProposals, 
+                            totalWonValue, 
+                            pipelineValue, 
+                            winRate, 
+                            avgMargin,
+                            actionItems, 
+                            recentActivities
+                        ) 
+                    });
+                } else if (proposalIds.length === 0) {
+                    // BDM has no proposals yet
+                    return res.status(200).json({ 
+                        success: true, 
+                        data: buildDashboardData(
+                            userRole, 
+                            proposals, 
+                            wonProposals, 
+                            lostProposals, 
+                            submittedProposals,
+                            allWonProposals, 
+                            totalWonValue, 
+                            pipelineValue, 
+                            winRate, 
+                            avgMargin,
+                            actionItems, 
+                            []
+                        ) 
+                    });
                 }
             }
             
             const activitiesSnapshot = await activitiesQuery.get();
             const recentActivities = activitiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             
-            let dashboardData = {};
-            if (userRole === 'director') {
-                // Directors see all data
-                const allProposalsSnapshot = await db.collection('proposals').get();
-                const allProposals = allProposalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                const allWonProposals = allProposals.filter(p => p.status === 'submitted_to_client' || p.status === 'won');
-                const allTotalWonValue = allWonProposals.reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
-                const allPipelineValue = allProposals.filter(p => !['submitted_to_client', 'won', 'rejected', 'lost'].includes(p.status))
-                                                    .reduce((sum, p) => sum + (p.pricing?.quoteValue || 0), 0);
-                
-                dashboardData = {
-                    stats: {
-                        'Total Pipeline Value': `$${allPipelineValue.toLocaleString()}`,
-                        'Win Rate (YTD)': `${allProposals.length > 0 ? ((allWonProposals.length / allProposals.length) * 100).toFixed(0) : 0}%`,
-                        'Avg Profit Margin (YTD)': `${allWonProposals.length > 0 ? (allWonProposals.reduce((sum, p) => sum + (p.pricing?.profitMargin || 0), 0) / allWonProposals.length).toFixed(0) : 0}%`,
-                        'Strategic Projects Pending': actionItems.length
-                    },
-                    actionItems,
-                    executiveOverview: {
-                        'Booked Revenue': `$${allTotalWonValue.toLocaleString()}`,
-                        'Projects Won': allWonProposals.length,
-                        'Client Satisfaction': '92%',
-                        'Resource Utilization': '85%'
-                    },
-                    recentActivities
-                };
-            } else if (userRole === 'bdm') {
-                // BDMs see only their own data
-                dashboardData = {
-                    stats: {
-                        'My Active Proposals': proposals.filter(p => !['won','lost','rejected'].includes(p.status)).length,
-                        'My Pipeline Value': `$${pipelineValue.toLocaleString()}`,
-                        'My Proposals Won': wonProposals.length,
-                        'My Win Rate': `${winRate}%`,
-                    },
-                    actionItems,
-                    recentActivities
-                };
-            } else {
-                // Estimators and COOs see aggregate data but filtered action items
-                dashboardData = {
-                    stats: {
-                        'Active Proposals': proposals.filter(p => !['won','lost','rejected'].includes(p.status)).length,
-                        'Pipeline Value': `$${pipelineValue.toLocaleString()}`,
-                        'Proposals Won': wonProposals.length,
-                        'Win Rate': `${winRate}%`,
-                    },
-                    actionItems,
-                    recentActivities
-                };
-            }
+            // Build dashboard data based on role
+            const dashboardData = buildDashboardData(
+                userRole, 
+                proposals, 
+                wonProposals, 
+                lostProposals, 
+                submittedProposals,
+                allWonProposals, 
+                totalWonValue, 
+                pipelineValue, 
+                winRate, 
+                avgMargin,
+                actionItems, 
+                recentActivities
+            );
 
             return res.status(200).json({ success: true, data: dashboardData });
 
@@ -162,5 +179,104 @@ const handler = async (req, res) => {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 };
+
+// Helper function to build dashboard data based on role
+function buildDashboardData(
+    userRole, 
+    proposals, 
+    wonProposals, 
+    lostProposals, 
+    submittedProposals,
+    allWonProposals, 
+    totalWonValue, 
+    pipelineValue, 
+    winRate, 
+    avgMargin,
+    actionItems, 
+    recentActivities
+) {
+    let dashboardData = {};
+    
+    if (userRole === 'director') {
+        // Directors see comprehensive company-wide data
+        const activeProposals = proposals.filter(p => !['won', 'lost', 'rejected'].includes(p.status));
+        const totalTonnage = wonProposals.reduce((sum, p) => sum + (parseFloat(p.estimation?.tonnage) || 0), 0);
+        
+        dashboardData = {
+            stats: {
+                'Total Pipeline Value': `$${pipelineValue.toLocaleString()}`,
+                'Jobs Won (YTD)': wonProposals.length,
+                'Jobs Lost (YTD)': lostProposals.length,
+                'Win Rate': `${winRate}%`,
+                'Avg Profit Margin': `${avgMargin}%`,
+                'Strategic Projects Pending': actionItems.length
+            },
+            actionItems,
+            executiveOverview: {
+                'Booked Revenue': `$${totalWonValue.toLocaleString()}`,
+                'Projects Won': wonProposals.length,
+                'Projects Lost': lostProposals.length,
+                'Total Tonnage Won': `${totalTonnage.toFixed(1)} tons`,
+                'Active Pipeline': activeProposals.length,
+                'Client Satisfaction': '92%'
+            },
+            recentActivities
+        };
+    } else if (userRole === 'bdm') {
+        // BDMs see only their own data
+        const activeProposals = proposals.filter(p => !['won', 'lost', 'rejected'].includes(p.status));
+        const myTonnage = wonProposals.reduce((sum, p) => sum + (parseFloat(p.estimation?.tonnage) || 0), 0);
+        
+        dashboardData = {
+            stats: {
+                'My Active Proposals': activeProposals.length,
+                'My Pipeline Value': `$${pipelineValue.toLocaleString()}`,
+                'My Jobs Won': wonProposals.length,
+                'My Jobs Lost': lostProposals.length,
+                'My Win Rate': `${winRate}%`,
+                'My Total Tonnage': `${myTonnage.toFixed(1)} tons`
+            },
+            actionItems,
+            recentActivities
+        };
+    } else if (userRole === 'coo') {
+        // COOs see aggregate data with focus on operations
+        const activeProposals = proposals.filter(p => !['won', 'lost', 'rejected'].includes(p.status));
+        const totalTonnage = wonProposals.reduce((sum, p) => sum + (parseFloat(p.estimation?.tonnage) || 0), 0);
+        const avgTonnagePerProject = wonProposals.length > 0 ? (totalTonnage / wonProposals.length).toFixed(1) : 0;
+        
+        dashboardData = {
+            stats: {
+                'Active Proposals': activeProposals.length,
+                'Pipeline Value': `$${pipelineValue.toLocaleString()}`,
+                'Jobs Won': wonProposals.length,
+                'Jobs Lost': lostProposals.length,
+                'Win Rate': `${winRate}%`,
+                'Avg Tonnage/Project': `${avgTonnagePerProject} tons`,
+                'Pending Pricing': actionItems.length
+            },
+            actionItems,
+            recentActivities
+        };
+    } else {
+        // Estimators and other roles see standard aggregate data
+        const activeProposals = proposals.filter(p => !['won', 'lost', 'rejected'].includes(p.status));
+        
+        dashboardData = {
+            stats: {
+                'Active Proposals': activeProposals.length,
+                'Pipeline Value': `$${pipelineValue.toLocaleString()}`,
+                'Jobs Won': wonProposals.length,
+                'Jobs Lost': lostProposals.length,
+                'Win Rate': `${winRate}%`,
+                'Pending Estimations': actionItems.length
+            },
+            actionItems,
+            recentActivities
+        };
+    }
+    
+    return dashboardData;
+}
 
 module.exports = allowCors(handler);
