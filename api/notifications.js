@@ -24,7 +24,7 @@ const handler = async (req, res) => {
             let query = db.collection('notifications')
                 .where('isRead', '==', false)
                 .orderBy('createdAt', 'desc')
-                .limit(10);
+                .limit(20); // Increased limit to show more notifications
             
             // For BDMs, filter notifications to only those meant for them specifically
             if (req.user.role === 'bdm') {
@@ -35,10 +35,17 @@ const handler = async (req, res) => {
             }
                         
             const snapshot = await query.get();
-            const notifications = snapshot.docs.map(doc => ({ 
-                id: doc.id, 
-                ...doc.data() 
-            }));
+            const notifications = snapshot.docs.map(doc => { 
+                const data = doc.data();
+                return {
+                    id: doc.id, 
+                    ...data,
+                    // Format timestamp for display
+                    formattedTime: data.createdAt ? 
+                        new Date(data.createdAt.seconds * 1000).toLocaleString() : 
+                        'Just now'
+                };
+            });
                         
             return res.status(200).json({ success: true, data: notifications });
         }
