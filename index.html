@@ -564,14 +564,25 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
+        // --- IMPORTANT SECURITY UPDATE ---
+        // The Firebase configuration has been removed from this file.
+        // You MUST configure these values using Vercel Environment Variables.
+        // For local development, you can create a .env.local file.
+        // For production, add these keys to your Vercel project's Environment Variables settings.
+        // Vercel automatically exposes variables prefixed with NEXT_PUBLIC_, VITE_, or REACT_APP_ to the browser.
+        // If you are not using a framework, you will need a build step or serverless function to expose them.
+        // For demonstration, we are creating placeholders. YOU MUST REPLACE THESE.
+
         const firebaseConfig = { 
-            apiKey: "AIzaSyBp7wCYMuM_FND-WnDlH0lrDJFGt4DqK-U"
-            authDomain: "eb-tracker-ff945.firebaseapp.com", 
-            projectId: "eb-tracker-ff945", 
-            storageBucket: "eb-tracker-ff945.firebasestorage.app", 
-            messagingSenderId: "854824137821", 
-            appId: "1:854824137821:web:7a408282c2f7c1816c89b4" 
+            apiKey: "YOUR_VERCEL_ENV_VARIABLE_FOR_API_KEY", 
+            authDomain: "YOUR_VERCEL_ENV_VARIABLE_FOR_AUTH_DOMAIN", 
+            projectId: "YOUR_VERCEL_ENV_VARIABLE_FOR_PROJECT_ID", 
+            storageBucket: "YOUR_VERCEL_ENV_VARIABLE_FOR_STORAGE_BUCKET", 
+            messagingSenderId: "YOUR_VERCEL_ENV_VARIABLE_FOR_MESSAGING_SENDER_ID", 
+            appId: "YOUR_VERCEL_ENV_VARIABLE_FOR_APP_ID"
         };
+
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
