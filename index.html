@@ -564,41 +564,55 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        // --- IMPORTANT SECURITY UPDATE ---
-        // Firebase configuration is now fetched from a secure serverless function.
-        // This function reads your Vercel Environment Variables.
-        
+        // --- Firebase Initialization and Auth ---
         let auth;
         let db;
+        let firebaseInitialized = false;
 
-        // Fetches config and initializes Firebase
         async function initializeFirebase() {
             try {
-                const response = await fetch('/api/firebase-config');
-                if (!response.ok) {
-                    throw new Error('Could not fetch Firebase configuration from server.');
+                let firebaseConfig;
+                // For local development, we expect a __firebase_config global variable.
+                // For deployed environments (like Vercel), we fetch from a serverless function.
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                     // In a local/preview environment, you might pass the config differently
+                    console.log("Local environment detected. Using placeholder config.");
+                    // You should replace this with a secure way to load config locally,
+                    // for example, by running a local server that serves the config.
+                    // For now, this will fail gracefully if __firebase_config is not defined.
+                    if (typeof __firebase_config !== 'undefined') {
+                        firebaseConfig = JSON.parse(__firebase_config);
+                    } else {
+                        // Fallback to fetch for local servers that might proxy the API
+                        const response = await fetch('/api/firebase-config');
+                        if (!response.ok) throw new Error('Could not fetch Firebase config locally.');
+                        firebaseConfig = await response.json();
+                    }
+                } else {
+                    // This is for Vercel or other hosting platforms
+                    const response = await fetch('/api/firebase-config');
+                    if (!response.ok) {
+                        throw new Error('Could not fetch Firebase configuration from server.');
+                    }
+                    firebaseConfig = await response.json();
                 }
-                const firebaseConfig = await response.json();
                 
-                // Check if keys are missing (which means env vars are not set on Vercel)
-                if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_VERCEL_ENV')) {
-                     document.body.innerHTML = `<div style="padding: 2rem; text-align: center; font-family: sans-serif;"><h1>Configuration Error</h1><p>Firebase environment variables are not set correctly on the server. Please check your Vercel project settings and ensure they are prefixed with VITE_.</p></div>`;
-                     throw new Error('Firebase environment variables are not configured on the server.');
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                     document.body.innerHTML = `<div style="padding: 2rem; text-align: center; font-family: sans-serif;"><h1>Configuration Error</h1><p>Firebase configuration is missing or incomplete. Please ensure your environment variables are set up correctly.</p></div>`;
+                     throw new Error('Firebase config is missing or invalid.');
                 }
 
-                // Initialize Firebase
                 firebase.initializeApp(firebaseConfig);
                 auth = firebase.auth();
                 db = firebase.firestore();
-
-                // Now that Firebase is initialized, set up the auth state listener
+                firebaseInitialized = true; // Set flag
                 setupAuthListener();
 
             } catch (error) {
                 console.error('Firebase initialization failed:', error);
                 const authMessages = document.getElementById('authMessages');
-                if(authMessages) {
-                    authMessages.innerHTML = `<div class="error-message">Application failed to start. Check the console for details.</div>`;
+                if (authMessages) {
+                    authMessages.innerHTML = `<div class="error-message">Application failed to start: ${error.message}</div>`;
                 }
             }
         }
@@ -629,7 +643,8 @@
                 }
             });
         }
-
+        
+        // --- API and Utility Functions ---
         function getApiBase() { 
             return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; 
         }
@@ -696,40 +711,8 @@
         function formatDate(ts) { 
             return (ts && ts.seconds) ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A'; 
         }
-
-        // Helper function to get file access indicator
-        function getFileAccessIndicator(file, proposalStatus) {
-            if (!file.fileType || file.fileType === 'project') {
-                return '<span class="file-access-indicator access-full">📁 Project File</span>';
-            }
-            
-            if (file.fileType === 'estimation') {
-                if (currentUserRole === 'bdm') {
-                    if (proposalStatus === 'approved' || proposalStatus === 'submitted_to_client') {
-                        return '<span class="file-access-indicator access-full">📊 Estimation (Approved)</span>';
-                    } else {
-                        return '<span class="file-access-indicator access-pending">📊 Estimation (Pending Approval)</span>';
-                    }
-                } else {
-                    return '<span class="file-access-indicator access-full">📊 Estimation File</span>';
-                }
-            }
-            
-            return '';
-        }
-
-        // Helper function to check if user can access estimation files
-        function canAccessEstimationFile(proposalStatus) {
-            if (['estimator', 'coo', 'director'].includes(currentUserRole)) {
-                return true;
-            }
-            if (currentUserRole === 'bdm') {
-                return proposalStatus === 'approved' || proposalStatus === 'submitted_to_client';
-            }
-            return false;
-        }
-
-
+        
+        // --- DOM Event Listeners and Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             initializeFirebase(); // Start the initialization process
@@ -747,6 +730,7 @@
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
         }
 
+        // --- Authentication Logic ---
         function showTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
@@ -757,6 +741,10 @@
 
         async function handleLogin(e) {
             e.preventDefault();
+            if (!firebaseInitialized) {
+                showMessage('Application is initializing, please wait...', 'warning');
+                return;
+            }
             try {
                 clearMessages(); 
                 showMessage('Logging in...', 'info');
@@ -765,12 +753,19 @@
                     document.getElementById('loginPassword').value
                 );
             } catch (error) { 
-                showMessage(error.code.includes('credential') ? 'Invalid email or password.' : 'Login failed.', 'error'); 
+                const errorMessage = (error && error.code && error.code.includes('credential'))
+                    ? 'Invalid email or password.' 
+                    : 'Login failed. Please try again.';
+                showMessage(errorMessage, 'error');
             }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
+             if (!firebaseInitialized) {
+                showMessage('Application is initializing, please wait...', 'warning');
+                return;
+            }
             const name = document.getElementById('registerName').value;
             const email = document.getElementById('registerEmail').value.toLowerCase();
             const password = document.getElementById('registerPassword').value;
@@ -791,7 +786,10 @@
                 showMessage('Account created! Please log in.', 'success'); 
                 showTab('login');
             } catch (error) { 
-                showMessage(error.code.includes('in-use') ? 'An account with this email already exists.' : 'Registration failed.', 'error'); 
+                 const errorMessage = (error && error.code && error.code.includes('in-use'))
+                    ? 'An account with this email already exists.'
+                    : 'Registration failed. Please try again.';
+                showMessage(errorMessage, 'error');
             }
         }
 
@@ -799,6 +797,7 @@
             await auth.signOut(); 
         }
         
+        // --- UI Rendering and Page Navigation ---
         function showApp() {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('appContainer').style.display = 'block';
@@ -839,6 +838,39 @@
                 hideLoading(); 
             }
         }
+        
+        // Helper function to get file access indicator
+        function getFileAccessIndicator(file, proposalStatus) {
+            if (!file.fileType || file.fileType === 'project') {
+                return '<span class="file-access-indicator access-full">📁 Project File</span>';
+            }
+            
+            if (file.fileType === 'estimation') {
+                if (currentUserRole === 'bdm') {
+                    if (proposalStatus === 'approved' || proposalStatus === 'submitted_to_client') {
+                        return '<span class="file-access-indicator access-full">📊 Estimation (Approved)</span>';
+                    } else {
+                        return '<span class="file-access-indicator access-pending">📊 Estimation (Pending Approval)</span>';
+                    }
+                } else {
+                    return '<span class="file-access-indicator access-full">📊 Estimation File</span>';
+                }
+            }
+            
+            return '';
+        }
+
+        // Helper function to check if user can access estimation files
+        function canAccessEstimationFile(proposalStatus) {
+            if (['estimator', 'coo', 'director'].includes(currentUserRole)) {
+                return true;
+            }
+            if (currentUserRole === 'bdm') {
+                return proposalStatus === 'approved' || proposalStatus === 'submitted_to_client';
+            }
+            return false;
+        }
+
 
         function renderDashboard(data) {
              const statsHtml = data.stats ? Object.entries(data.stats).map(([k, v]) => `
