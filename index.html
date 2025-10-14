@@ -564,17 +564,71 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        const firebaseConfig = { 
-            apiKey: "AIzaSyBp7wCYMuM_FND-WnDlH0lrDJFGt4DqK-U", 
-            authDomain: "eb-tracker-ff945.firebaseapp.com", 
-            projectId: "eb-tracker-ff945", 
-            storageBucket: "eb-tracker-ff945.firebasestorage.app", 
-            messagingSenderId: "854824137821", 
-            appId: "1:854824137821:web:7a408282c2f7c1816c89b4" 
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        // --- IMPORTANT SECURITY UPDATE ---
+        // Firebase configuration is now fetched from a secure serverless function.
+        // This function reads your Vercel Environment Variables.
+        
+        let auth;
+        let db;
+
+        // Fetches config and initializes Firebase
+        async function initializeFirebase() {
+            try {
+                const response = await fetch('/api/firebase-config');
+                if (!response.ok) {
+                    throw new Error('Could not fetch Firebase configuration from server.');
+                }
+                const firebaseConfig = await response.json();
+                
+                // Check if keys are missing (which means env vars are not set on Vercel)
+                if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_VERCEL_ENV')) {
+                     document.body.innerHTML = `<div style="padding: 2rem; text-align: center; font-family: sans-serif;"><h1>Configuration Error</h1><p>Firebase environment variables are not set correctly on the server. Please check your Vercel project settings and ensure they are prefixed with VITE_.</p></div>`;
+                     throw new Error('Firebase environment variables are not configured on the server.');
+                }
+
+                // Initialize Firebase
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+
+                // Now that Firebase is initialized, set up the auth state listener
+                setupAuthListener();
+
+            } catch (error) {
+                console.error('Firebase initialization failed:', error);
+                const authMessages = document.getElementById('authMessages');
+                if(authMessages) {
+                    authMessages.innerHTML = `<div class="error-message">Application failed to start. Check the console for details.</div>`;
+                }
+            }
+        }
+
+        function setupAuthListener() {
+             auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    currentUser = user;
+                    try {
+                        authToken = await user.getIdToken(true);
+                        const userDoc = await db.collection('users').doc(user.uid).get();
+                        if (userDoc.exists) {
+                            currentUserRole = userDoc.data().role;
+                            showApp();
+                        } else {
+                            await auth.signOut();
+                            showMessage('Your user account was not found in the database. Please contact an administrator.', 'error');
+                        }
+                    } catch (error) { 
+                        console.error('Auth state change error:', error); 
+                        showMessage('Failed to initialize session.', 'error'); 
+                    }
+                } else {
+                    currentUser = null; 
+                    currentUserRole = ''; 
+                    authToken = ''; 
+                    showLogin();
+                }
+            });
+        }
 
         function getApiBase() { 
             return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; 
@@ -678,30 +732,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
-            auth.onAuthStateChanged(async (user) => {
-                if (user) {
-                    currentUser = user;
-                    try {
-                        authToken = await user.getIdToken(true);
-                        const userDoc = await db.collection('users').doc(user.uid).get();
-                        if (userDoc.exists) {
-                            currentUserRole = userDoc.data().role;
-                            showApp();
-                        } else {
-                            await auth.signOut();
-                            showMessage('Your user account was not found in the database. Please contact an administrator.', 'error');
-                        }
-                    } catch (error) { 
-                        console.error('Auth state change error:', error); 
-                        showMessage('Failed to initialize session.', 'error'); 
-                    }
-                } else {
-                    currentUser = null; 
-                    currentUserRole = ''; 
-                    authToken = ''; 
-                    showLogin();
-                }
-            });
+            initializeFirebase(); // Start the initialization process
         });
 
         function setupEventListeners() {
@@ -2380,3 +2411,4 @@
     </script>
 </body>
 </html>
+
