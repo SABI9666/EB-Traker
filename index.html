@@ -564,30 +564,17 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script>
-        // Firebase will be initialized after fetching config from API
-        let auth, db;
-
-        // Fetch Firebase config from environment variables (via API endpoint)
-        async function initializeFirebase() {
-            try {
-                const response = await fetch('/api/firebase-config');
-                if (!response.ok) {
-                    throw new Error('Failed to load Firebase configuration');
-                }
-                const firebaseConfig = await response.json();
-                
-                // Initialize Firebase with the fetched config
-                firebase.initializeApp(firebaseConfig);
-                auth = firebase.auth();
-                db = firebase.firestore();
-                
-                // Now setup the app
-                setupApp();
-            } catch (error) {
-                console.error('Firebase initialization error:', error);
-                showMessage('Failed to initialize application. Please refresh the page.', 'error');
-            }
-        }
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBp7wCYMuM_FND-WnDlH0lrDJFGt4DqK-U", 
+            authDomain: "eb-tracker-ff945.firebaseapp.com", 
+            projectId: "eb-tracker-ff945", 
+            storageBucket: "eb-tracker-ff945.firebasestorage.app", 
+            messagingSenderId: "854824137821", 
+            appId: "1:854824137821:web:7a408282c2f7c1816c89b4" 
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
         function getApiBase() { 
             return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; 
@@ -688,7 +675,8 @@
             return false;
         }
 
-        function setupApp() {
+
+        document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
@@ -714,13 +702,7 @@
                     showLogin();
                 }
             });
-        }
-
-        // Initialize Firebase when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeFirebase();
         });
-
 
         function setupEventListeners() {
             document.querySelectorAll('.role-btn').forEach(btn => {
