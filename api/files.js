@@ -2,19 +2,41 @@ const admin = require('./_firebase-admin');
 const { verifyToken } = require('../middleware/auth');
 const util = require('util');
 const multer = require('multer');
+const sharp = require('sharp'); // Added for image compression
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
+
+// Configure max file size from env, default to 100MB
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE_MB || '100') * 1024 * 1024;
 
 // Configure multer for file uploads
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB limit
+        fileSize: MAX_FILE_SIZE, // Updated to use MAX_FILE_SIZE
     },
     fileFilter: (req, file, cb) => {
-        // Allow all file types for now
-        cb(null, true);
+        // Updated to be more explicit
+        const allowedMimes = [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/gif',
+            'application/acad', // CAD
+            'application/x-acad', // CAD
+            'image/vnd.dwg' // CAD
+        ];
+
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`File type ${file.mimetype} not supported`), false);
+        }
     }
 });
 
@@ -258,6 +280,13 @@ const handler = async (req, res) => {
                     upload.array('files', 10)(req, res, async (err) => {
                         if (err) {
                             console.error('Multer error:', err);
+                            // Handle specific multer errors
+                            if (err.message.includes('not supported')) {
+                                return res.status(415).json({ success: false, error: err.message }); // 415 Unsupported Media Type
+                            }
+                            if (err.code === 'LIMIT_FILE_SIZE') {
+                                return res.status(413).json({ success: false, error: `File too large. Max size is ${MAX_FILE_SIZE / 1024 / 1024}MB.` }); // 413 Payload Too Large
+                            }
                             return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
                         }
 
@@ -297,6 +326,25 @@ const handler = async (req, res) => {
                             }
 
                             for (const file of req.files) {
+                                
+                                // --- START: Image Compression Logic ---
+                                try {
+                                    if (file.mimetype.startsWith('image/')) {
+                                        // Compress image if it's larger than 2MB
+                                        if (file.size > 2 * 1024 * 1024) {
+                                            const compressedBuffer = await sharp(file.buffer)
+                                                .jpeg({ quality: 85 })
+                                                .toBuffer();
+                                            file.buffer = compressedBuffer;
+                                            file.size = compressedBuffer.length;
+                                        }
+                                    }
+                                } catch (compressError) {
+                                    console.warn(`Could not compress image ${file.originalname}: ${compressError.message}. Uploading original.`);
+                                    // If compression fails, continue with the original buffer
+                                }
+                                // --- END: Image Compression Logic ---
+
                                 const fileName = `${proposalId || 'general'}/${Date.now()}-${file.originalname}`;
                                 const fileRef = bucket.file(fileName);
                                 
