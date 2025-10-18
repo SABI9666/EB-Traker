@@ -437,30 +437,6 @@
             .form-row { grid-template-columns: 1fr; }
             .service-grid { grid-template-columns: 1fr; }
         }
-
-        /* CSS for new file upload areas */
-        .file-upload-group {
-            border: 1px solid var(--border);
-            padding: 1rem;
-            border-radius: 10px;
-            background: white;
-        }
-        .file-drop-zone {
-            min-height: 120px;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        .file-drop-zone:hover {
-            background: var(--light-blue);
-            transform: scale(1.02);
-        }
-        .file-preview {
-            margin-top: 0.5rem;
-        }
-        .upload-area.has-file {
-            background: #f0f9ff;
-            border-color: var(--success);
-        }
     </style>
 </head>
 <body>
@@ -601,8 +577,7 @@
         const db = firebase.firestore();
 
         function getApiBase() { 
-            // FIXED: Added the 'c' to 'eb-tracker'
-            return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-tracker.vercel.app'; 
+            return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; 
         }
         const API_BASE = getApiBase();
 
@@ -615,33 +590,23 @@
         let currentUserRole = ''; 
         let authToken = '';
 
-        // ============================================
-        // REPLACED FUNCTION (with enhanced logging)
-        // ============================================
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
-            console.log('Calling API:', url); // Debug log
-        
             const defaultOptions = { 
                 headers: { 
                     'Authorization': `Bearer ${authToken}` 
                 } 
             };
-        
             if (!(options.body instanceof FormData)) {
                 defaultOptions.headers['Content-Type'] = 'application/json';
             }
+
             const finalOptions = { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } };
-        
+            
             try {
                 const response = await fetch(url, finalOptions);
-                
-                // Add more detailed error logging
+                const responseText = await response.text();
                 if (!response.ok) {
-                    console.error('Response not OK:', response.status, response.statusText);
-                    const responseText = await response.text();
-                    console.error('Response body:', responseText);
-            
                     let errorData;
                     try { 
                         errorData = JSON.parse(responseText); 
@@ -650,22 +615,12 @@
                     }
                     throw new Error(errorData.message || errorData.error || `Request failed`);
                 }
-                
-                const responseText = await response.text();
                 return responseText ? JSON.parse(responseText) : {};
             } catch (error) { 
-                // Check if it's a network error
-                if (error.message === 'Failed to fetch') {
-                    console.error('Network error - check if the API server is running and accessible');
-                    console.error('API URL attempted:', url);
-                }
                 console.error(`API call to ${endpoint} failed:`, error); 
                 throw error; 
             }
         }
-        // ============================================
-        // END OF REPLACED FUNCTION
-        // ============================================
 
         function showLoading() { document.getElementById('loadingSpinner').style.display = 'flex'; }
         function hideLoading() { document.getElementById('loadingSpinner').style.display = 'none'; }
@@ -686,14 +641,6 @@
         }
         function formatDate(ts) { 
             return (ts && ts.seconds) ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A'; 
-        }
-
-        // ADDED: Helper function to clear selected file
-        window.clearFile = function(index) {
-            const fileInput = document.getElementById(`fileInput${index}`);
-            const preview = document.getElementById(`preview${index}`);
-            fileInput.value = '';
-            preview.innerHTML = '';
         }
 
         // Helper function to get file access indicator
@@ -1024,11 +971,11 @@
         // Replace the corresponding functions in your index (9).html file
         // ============================================
 
-        // 1. UPDATED showCreateProposalModal - WITH 4 file uploads
+        // 1. UPDATED showCreateProposalModal - WITH COMMENTS FIELD
         function showCreateProposalModal() {
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
-                'Joist Detailing', 'As-built Drawings', 'Structural Engineering'
+                'Joist Detailing', 'As-built Drawings'
             ];
             const modalHtml = `
                 <div class="modal-overlay">
@@ -1097,56 +1044,16 @@
                             </div>
                             
                             <div class="form-section">
-                                <h4>Upload Project Files (Multiple PDFs Supported)</h4>
-                                
-                                <div id="fileUploadSections">
-                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
-                                        <label style="display: block; margin-bottom: 0.5rem;">File 1:</label>
-                                        <div class="upload-area file-drop-zone" data-input="fileInput1">
-                                            <div class="upload-icon">📄</div>
-                                            <p>Click or drag PDF here</p>
-                                            <input type="file" id="fileInput1" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
-                                            <div class="file-preview" id="preview1"></div>
-                                        </div>
+                                <h4>Upload Project Files (RFQ, Tender Documents, Drawings)</h4>
+                                <div class="upload-area" id="uploadArea">
+                                    <div class="upload-icon">📁</div>
+                                    <p>Click to upload or drag and drop files</p>
+                                    <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">
+                                        Supported: PDF, DOCX, XLSX, DWG
                                     </div>
-                                    
-                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
-                                        <label style="display: block; margin-bottom: 0.5rem;">File 2:</label>
-                                        <div class="upload-area file-drop-zone" data-input="fileInput2">
-                                            <div class="upload-icon">📄</div>
-                                            <p>Click or drag PDF here</p>
-                                            <input type="file" id="fileInput2" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
-                                            <div class="file-preview" id="preview2"></div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
-                                        <label style="display: block; margin-bottom: 0.5rem;">File 3:</label>
-                                        <div class="upload-area file-drop-zone" data-input="fileInput3">
-                                            <div class="upload-icon">📄</div>
-                                            <p>Click or drag PDF here</p>
-                                            <input type="file" id="fileInput3" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
-                                            <div class="file-preview" id="preview3"></div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
-                                        <label style="display: block; margin-bottom: 0.5rem;">File 4:</label>
-                                        <div class="upload-area file-drop-zone" data-input="fileInput4">
-                                            <div class="upload-icon">📄</div>
-                                            <p>Click or drag PDF here</p>
-                                            <input type="file" id="fileInput4" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
-                                            <div class="file-preview" id="preview4"></div>
-                                        </div>
-                                    </div>
+                                    <input type="file" id="fileInput" multiple style="display: none;">
                                 </div>
-                                
-                                <div class="info-message" style="margin-top: 1rem;">
-                                    <strong>File Guidelines:</strong><br>
-                                    • Max file size: 100MB per file<br>
-                                    • Supported formats: PDF, DOCX, XLSX, DWG<br>
-                                    • You can upload up to 4 files at once
-                                </div>
+                                <div id="filePreview"></div>
                             </div>
                             
                             <div class="form-section">
@@ -1171,52 +1078,21 @@
             
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             
-            // Setup individual file uploads
-            for (let i = 1; i <= 4; i++) {
-                const dropZone = document.querySelector(`[data-input="fileInput${i}"]`);
-                const fileInput = document.getElementById(`fileInput${i}`);
-                const preview = document.getElementById(`preview${i}`);
-                
-                // Click to upload
-                dropZone.onclick = (e) => {
-                    if (e.target === fileInput) return;
-                    fileInput.click();
-                };
-                
-                // File selection
-                fileInput.onchange = function() {
-                    if (this.files[0]) {
-                        const file = this.files[0];
-                        preview.innerHTML = `
-                            <div style="padding: 0.5rem; background: var(--light-blue); border-radius: 5px; margin-top: 0.5rem;">
-                                <strong>Selected:</strong> ${file.name}<br>
-                                <small>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</small>
-                                <button type="button" onclick="clearFile(${i})" style="float: right; background: var(--danger); color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer;">Remove</button>
-                            </div>
-                        `;
-                    }
-                };
-                
-                // Drag and drop
-                dropZone.ondragover = (e) => {
-                    e.preventDefault();
-                    dropZone.style.backgroundColor = 'var(--light-blue)';
-                };
-                
-                dropZone.ondragleave = (e) => {
-                    e.preventDefault();
-                    dropZone.style.backgroundColor = '';
-                };
-                
-                dropZone.ondrop = (e) => {
-                    e.preventDefault();
-                    dropZone.style.backgroundColor = '';
-                    if (e.dataTransfer.files[0]) {
-                        fileInput.files = e.dataTransfer.files;
-                        fileInput.dispatchEvent(new Event('change'));
-                    }
-                };
-            }
+            // Setup file upload
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            uploadArea.onclick = () => fileInput.click();
+            
+            let selectedFiles = [];
+
+            fileInput.onchange = function() {
+                selectedFiles = Array.from(this.files);
+                if (selectedFiles.length > 0) {
+                    document.getElementById('filePreview').innerHTML = 
+                        '<h5>Files to Upload:</h5>' + 
+                        selectedFiles.map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
+                }
+            };
             
             // Handle form submission
             document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
@@ -1241,7 +1117,7 @@
                     timeline: document.getElementById('timeline').value,
                     priority: document.getElementById('priority').value,
                     scopeOfWork: document.getElementById('scopeOfWork').value,
-                    comments: document.getElementById('proposalComments').value,
+                    comments: document.getElementById('proposalComments').value, // NEW: Include comments
                     projectLinks: projectLinks
                 };
                 
@@ -1257,18 +1133,10 @@
                     if (response.success && response.data) {
                         const proposalId = response.data.id;
                         
-                        // Upload all selected files
-                        const allFiles = [];
-                        for (let i = 1; i <= 4; i++) {
-                            const fileInput = document.getElementById(`fileInput${i}`);
-                            if (fileInput.files[0]) {
-                                allFiles.push(fileInput.files[0]);
-                            }
-                        }
-                        
-                        if (allFiles.length > 0) {
+                        // Upload files if any
+                        if (selectedFiles.length > 0) {
                             const fileFormData = new FormData();
-                            allFiles.forEach(file => fileFormData.append('files', file));
+                            selectedFiles.forEach(file => fileFormData.append('files', file));
                             fileFormData.append('proposalId', proposalId);
                             fileFormData.append('fileType', 'project');
                             
@@ -1290,7 +1158,7 @@
                             });
                         }
                         
-                        alert('Proposal created successfully with all files!');
+                        alert('Proposal created successfully!');
                         closeModal();
                         showProposals();
                     }
@@ -2120,9 +1988,18 @@
                 showLoading();
                 const { success } = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
                 if (success) {
-                    alert('File deleted. Please reopen the proposal to see changes.');
-                    closeModal(); // Close the modal to force a refresh
-                    showProposals(); // or showDashboard()
+                    alert('File deleted successfully!');
+                    // Refresh the current view
+                    if (document.getElementById('fileListContainer')) {
+                        showFileUpload();
+                    } else {
+                        // If in proposal view, close and reopen
+                        const proposalId = new URLSearchParams(window.location.search).get('proposalId');
+                        if (proposalId) {
+                            closeModal();
+                            viewProposal(proposalId);
+                        }
+                    }
                 }
             } catch(err) { 
                 alert(`Error: ${err.message}`); 
