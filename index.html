@@ -500,6 +500,9 @@
                             <label for="loginPassword">Password</label>
                             <input type="password" id="loginPassword" class="form-control" required>
                         </div>
+                        <div style="text-align: right; margin-bottom: 1.5rem;">
+                            <a href="#" onclick="handleForgotPassword(event)" style="color: var(--primary-blue); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+                        </div>
                         <button type="submit" class="btn btn-primary">Login</button>
                     </form>
                 </div>
@@ -821,6 +824,29 @@
                 showTab('login');
             } catch (error) {
                  showMessage(error.code?.includes('auth/email-already-in-use') ? 'An account with this email already exists.' : `Registration failed: ${error.message}`, 'error');
+            }
+        }
+
+        // *** FORGOT PASSWORD FUNCTION ADDED HERE ***
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            if (!email) {
+                return showMessage('Please enter your email address in the email field first, then click "Forgot Password".', 'warning');
+            }
+
+            try {
+                clearMessages();
+                showMessage('Sending password reset email...', 'info');
+                await auth.sendPasswordResetEmail(email);
+                showMessage('Password reset email sent! Please check your inbox.', 'success');
+            } catch (error) {
+                console.error('Forgot password error:', error);
+                if (error.code === 'auth/user-not-found') {
+                    showMessage('No account found with that email address.', 'error');
+                } else {
+                    showMessage(`Error: ${error.message}`, 'error');
+                }
             }
         }
 
@@ -1365,7 +1391,8 @@
                 const p = response.data;
 
                 // Check if editable
-                if (req.user.role !== 'bdm' || p.createdByUid !== req.user.uid) {
+                // *** FIX WAS HERE: Replaced 'req.user.role' with 'currentUserRole' and 'req.user.uid' with 'currentUser.uid' ***
+                if (currentUserRole !== 'bdm' || p.createdByUid !== currentUser.uid) {
                     alert('You can only edit your own proposals.');
                     return;
                 }
