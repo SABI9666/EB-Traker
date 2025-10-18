@@ -827,7 +827,6 @@
             }
         }
 
-        // *** FORGOT PASSWORD FUNCTION ADDED HERE ***
         async function handleForgotPassword(e) {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
@@ -1349,6 +1348,55 @@
             container.appendChild(newLinkGroup);
         }
 
+        // *** NEW HELPER FUNCTIONS FOR EDIT MODAL ***
+        // Helper function for adding link fields in EDIT modal
+        function addEditLinkField() {
+            const container = document.getElementById('editLinksContainer');
+            if (!container) return; // Safety check
+            const newLinkGroup = document.createElement('div');
+            newLinkGroup.className = 'link-input-group';
+            newLinkGroup.style.marginBottom = '1rem';
+            newLinkGroup.innerHTML = `
+                <input type="url" class="form-control" placeholder="Enter URL (e.g., https://...)" style="margin-bottom: 0.5rem;">
+                <input type="text" class="form-control" placeholder="Link title/description (optional)">
+            `;
+            container.appendChild(newLinkGroup);
+        }
+
+        // Helper function to clear selected file in EDIT modal
+        window.clearEditFile = function(index) {
+            const fileInput = document.getElementById(`editFileInput${index}`);
+            const preview = document.getElementById(`editPreview${index}`);
+            if (fileInput) fileInput.value = ''; // Clears the selected file
+            if (preview) preview.innerHTML = ''; // Clears the preview text
+        }
+        
+        // Function to handle file selection and preview in EDIT modal
+        function handleEditFileSelection(inputElement, index) {
+             const preview = document.getElementById(`editPreview${index}`);
+             if (!preview) return;
+             preview.innerHTML = ''; // Clear previous preview
+             if (inputElement.files[0]) {
+                const file = inputElement.files[0];
+                if (file.size > 100 * 1024 * 1024) { // 100MB limit
+                    alert(`File "${file.name}" is too large (max 100MB).`);
+                    inputElement.value = ''; // Clear selection
+                    return;
+                }
+                preview.innerHTML = `
+                    <div style="padding: 0.5rem; background: var(--light-blue); border-radius: 5px; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>Selected:</strong> ${file.name}<br>
+                            <small>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                         </div>
+                        <button type="button" onclick="clearEditFile(${index})" style="background: var(--danger); color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer;">Remove</button>
+                    </div>
+                `;
+            }
+        }
+        // *** END OF NEW HELPER FUNCTIONS ***
+
+
         // View Proposal Modal (fetches data and files)
         async function viewProposal(proposalId) {
             console.log(`Viewing proposal: ${proposalId}`);
@@ -1391,7 +1439,6 @@
                 const p = response.data;
 
                 // Check if editable
-                // *** FIX WAS HERE: Replaced 'req.user.role' with 'currentUserRole' and 'req.user.uid' with 'currentUser.uid' ***
                 if (currentUserRole !== 'bdm' || p.createdByUid !== currentUser.uid) {
                     alert('You can only edit your own proposals.');
                     return;
@@ -1471,6 +1518,34 @@
                                     <textarea id="editComments" class="form-control" rows="3">${p.comments || ''}</textarea>
                                 </div>
 
+                                <div class="form-section">
+                                    <h4>Upload Additional Project Files (Optional)</h4>
+                                    <div id="editFileUploadSections">
+                                        ${[1, 2].map(i => `
+                                        <div class="file-upload-group" style="margin-bottom: 1rem;">
+                                            <label style="display: block; margin-bottom: 0.5rem;">New File ${i}:</label>
+                                            <div class="upload-area file-drop-zone" data-input="editFileInput${i}">
+                                                <div class="upload-icon">📄</div>
+                                                <p>Click or drag file here (PDF, DOCX, XLSX, DWG)</p>
+                                                <input type="file" id="editFileInput${i}" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
+                                                <div class="file-preview" id="editPreview${i}"></div>
+                                            </div>
+                                        </div>
+                                        `).join('')}
+                                    </div>
+                                    <div class="info-message" style="margin-top: 1rem;">
+                                        <strong>Note:</strong> These files will be added to the proposal. Existing files will not be removed.
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h4>Add Additional Project Links (Optional)</h4>
+                                    <div id="editLinksContainer">
+                                        </div>
+                                    <button type="button" onclick="addEditLinkField()" class="btn btn-outline btn-sm" style="width: auto;">+ Add Another Link</button>
+                                </div>
+
+
                                 <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                                     <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
                                     <button type="submit" class="btn btn-primary">Update Proposal</button>
@@ -1482,7 +1557,34 @@
 
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-                // Handle edit form submission
+                // *** NEW: Setup file uploads for EDIT modal ***
+                for (let i = 1; i <= 2; i++) { // We added 2 file inputs
+                    const dropZone = document.querySelector(`[data-input="editFileInput${i}"]`);
+                    const fileInput = document.getElementById(`editFileInput${i}`);
+                    
+                    if (!dropZone || !fileInput) continue; // Safety check
+
+                    dropZone.onclick = (e) => {
+                        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                        fileInput.click();
+                    };
+                    fileInput.onchange = function() {
+                        handleEditFileSelection(this, i);
+                    };
+                    // Drag and drop handlers
+                    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.backgroundColor = 'var(--light-blue)'; };
+                    dropZone.ondragleave = (e) => { e.preventDefault(); dropZone.style.backgroundColor = ''; };
+                    dropZone.ondrop = (e) => {
+                        e.preventDefault();
+                        dropZone.style.backgroundColor = '';
+                        if (e.dataTransfer.files[0]) {
+                            fileInput.files = e.dataTransfer.files;
+                            handleEditFileSelection(fileInput, i);
+                        }
+                    };
+                }
+
+                // *** MODIFIED: Handle edit form submission (with new file/link logic) ***
                 document.getElementById('editProposalForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
 
@@ -1497,23 +1599,84 @@
                         comments: document.getElementById('editComments').value
                     };
 
+                    // --- NEW LOGIC START ---
+                    // 1. Collect new links
+                    const linkInputs = document.querySelectorAll('#editLinksContainer .link-input-group');
+                    const newProjectLinks = [];
+                    linkInputs.forEach(group => {
+                        const url = group.querySelector('input[type="url"]').value;
+                        const title = group.querySelector('input[type="text"]').value;
+                        if (url) { // Only add if URL is not empty
+                            newProjectLinks.push({ url, title: title || url, description: title });
+                        }
+                    });
+
+                    // 2. Collect new files
+                    const filesToUpload = [];
+                    for (let i = 1; i <= 2; i++) { // We added 2 file inputs
+                        const fileInput = document.getElementById(`editFileInput${i}`);
+                        if (fileInput && fileInput.files[0]) {
+                            filesToUpload.push(fileInput.files[0]);
+                        }
+                    }
+                    // --- NEW LOGIC END ---
+
                     try {
                         showLoading();
+                        
+                        // 1. Update proposal text data
                         const updateResponse = await apiCall(`proposals?id=${proposalId}`, {
                             method: 'PUT',
                             body: JSON.stringify({
-                                action: 'edit_proposal', // Use specific action for backend
-                                data: updatedData
+                                action: 'edit_proposal',
+                                data: updatedData 
                             })
                         });
 
-                        if (updateResponse.success) {
-                            alert('Proposal updated successfully!');
-                            closeModal();
-                            showProposals(); // Refresh proposal list
-                        } else {
-                            throw new Error(updateResponse.error || 'Failed to update proposal.');
+                        if (!updateResponse.success) {
+                            throw new Error(updateResponse.error || 'Failed to update proposal text data.');
                         }
+
+                        // 2. Upload new files (if any)
+                        if (filesToUpload.length > 0) {
+                            console.log(`Uploading ${filesToUpload.length} new files...`);
+                            const fileFormData = new FormData();
+                            filesToUpload.forEach(file => fileFormData.append('files', file));
+                            fileFormData.append('proposalId', proposalId);
+                            fileFormData.append('fileType', 'project');
+
+                            await apiCall('files', {
+                                method: 'POST',
+                                body: fileFormData
+                            });
+                            console.log("New files uploaded successfully.");
+                        }
+
+                        // 3. Upload new links (if any)
+                        if (newProjectLinks.length > 0) {
+                            console.log(`Adding ${newProjectLinks.length} new links...`);
+                            await apiCall('files', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    links: newProjectLinks,
+                                    proposalId: proposalId,
+                                    fileType: 'link'
+                                })
+                            });
+                            console.log("New links added successfully.");
+                        }
+
+                        // 4. Success
+                        alert('Proposal updated successfully!');
+                        closeModal();
+                        
+                        // Refresh the list view
+                        if (document.getElementById('fileListContainer')) {
+                            showFileUpload(); // Refresh file manager if we are there
+                        } else {
+                            showProposals(); // Refresh proposal list
+                        }
+                        
                     } catch (error) {
                         console.error('Update failed:', error);
                         alert(`Update failed: ${error.message}`);
