@@ -438,7 +438,7 @@
             .service-grid { grid-template-columns: 1fr; }
         }
 
-        /* ADDED: CSS for new file upload areas */
+        /* CSS for new file upload areas */
         .file-upload-group {
             border: 1px solid var(--border);
             padding: 1rem;
@@ -614,23 +614,33 @@
         let currentUserRole = ''; 
         let authToken = '';
 
+        // ============================================
+        // REPLACED FUNCTION (with enhanced logging)
+        // ============================================
         async function apiCall(endpoint, options = {}) {
             const url = `${API_BASE}/api/${endpoint}`;
+            console.log('Calling API:', url); // Debug log
+        
             const defaultOptions = { 
                 headers: { 
                     'Authorization': `Bearer ${authToken}` 
                 } 
             };
+        
             if (!(options.body instanceof FormData)) {
                 defaultOptions.headers['Content-Type'] = 'application/json';
             }
-
             const finalOptions = { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } };
-            
+        
             try {
                 const response = await fetch(url, finalOptions);
-                const responseText = await response.text();
+                
+                // Add more detailed error logging
                 if (!response.ok) {
+                    console.error('Response not OK:', response.status, response.statusText);
+                    const responseText = await response.text();
+                    console.error('Response body:', responseText);
+            
                     let errorData;
                     try { 
                         errorData = JSON.parse(responseText); 
@@ -639,12 +649,22 @@
                     }
                     throw new Error(errorData.message || errorData.error || `Request failed`);
                 }
+                
+                const responseText = await response.text();
                 return responseText ? JSON.parse(responseText) : {};
             } catch (error) { 
+                // Check if it's a network error
+                if (error.message === 'Failed to fetch') {
+                    console.error('Network error - check if the API server is running and accessible');
+                    console.error('API URL attempted:', url);
+                }
                 console.error(`API call to ${endpoint} failed:`, error); 
                 throw error; 
             }
         }
+        // ============================================
+        // END OF REPLACED FUNCTION
+        // ============================================
 
         function showLoading() { document.getElementById('loadingSpinner').style.display = 'flex'; }
         function hideLoading() { document.getElementById('loadingSpinner').style.display = 'none'; }
@@ -999,7 +1019,7 @@
         }
         
         // ============================================
-        // REPLACED FUNCTION
+        // REPLACED FUNCTION (with 4 file uploads)
         // ============================================
 
         function showCreateProposalModal() {
