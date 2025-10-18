@@ -165,6 +165,7 @@ const handler = async (req, res) => {
                         status: 'pending_pricing', 
                         estimation: { 
                             ...data, 
+                            quoteNumber: data.quoteNumber || '', // MODIFIED: Added quoteNumber
                             estimatedBy: req.user.name, 
                             estimatedAt: new Date().toISOString() 
                         } 
@@ -177,6 +178,7 @@ const handler = async (req, res) => {
                         status: 'pending_director_approval', 
                         pricing: { 
                             ...data, 
+                            quoteNumber: data.quoteNumber || '', // MODIFIED: Added quoteNumber
                             pricedBy: req.user.name, 
                             pricedAt: new Date().toISOString() 
                         } 
@@ -349,7 +351,7 @@ const handler = async (req, res) => {
 
             const proposalRef = db.collection('proposals').doc(id);
             const proposalDoc = await proposalRef.get();
-            if (!proposalDoc.exists) return res.status(404).json({ success: false, error: 'Proposal not found' });
+            if (!proposalDoc.exists) return res.status(4404).json({ success: false, error: 'Proposal not found' });
             
             const proposalData = proposalDoc.data();
             // Security check: Only creator or a director can delete
