@@ -2,7 +2,8 @@ const admin = require('./_firebase-admin');
 const { verifyToken } = require('../middleware/auth');
 const util = require('util');
 const multer = require('multer');
-const sharp = require('sharp'); // Added for image compression
+const sharp = require('sharp');
+const path = require('path'); // Added for file extension checking
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
@@ -14,10 +15,15 @@ const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE_MB || '100') * 1024 * 1
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        fileSize: MAX_FILE_SIZE, // Updated to use MAX_FILE_SIZE
+        fileSize: MAX_FILE_SIZE, // 100MB per file
+        files: 10 // Allow up to 10 files at once
     },
     fileFilter: (req, file, cb) => {
-        // Updated to be more explicit
+        // Validate file types by extension
+        const allowedExtRegex = /pdf|docx|xlsx|xls|dwg|jpg|jpeg|png|gif/;
+        const extname = allowedExtRegex.test(path.extname(file.originalname).toLowerCase());
+        
+        // Validate by MIME type as a fallback
         const allowedMimes = [
             'application/pdf',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -31,14 +37,16 @@ const upload = multer({
             'application/x-acad', // CAD
             'image/vnd.dwg' // CAD
         ];
+        const mimetype = allowedMimes.includes(file.mimetype);
 
-        if (allowedMimes.includes(file.mimetype)) {
+        if (extname || mimetype) {
             cb(null, true);
         } else {
-            cb(new Error(`File type ${file.mimetype} not supported`), false);
+            cb(new Error('Invalid file type. Only PDF, DOCX, XLSX, DWG, and images are allowed.'));
         }
     }
 });
+
 
 const allowCors = fn => async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -281,11 +289,14 @@ const handler = async (req, res) => {
                         if (err) {
                             console.error('Multer error:', err);
                             // Handle specific multer errors
-                            if (err.message.includes('not supported')) {
+                            if (err.message.includes('Invalid file type')) { // Updated error message check
                                 return res.status(415).json({ success: false, error: err.message }); // 415 Unsupported Media Type
                             }
                             if (err.code === 'LIMIT_FILE_SIZE') {
                                 return res.status(413).json({ success: false, error: `File too large. Max size is ${MAX_FILE_SIZE / 1024 / 1024}MB.` }); // 413 Payload Too Large
+                            }
+                            if (err.code === 'LIMIT_FILE_COUNT') { // Added error for file count
+                                return res.status(413).json({ success: false, error: 'Too many files. Max 10 files allowed at once.' });
                             }
                             return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
                         }
