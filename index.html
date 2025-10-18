@@ -601,6 +601,7 @@
         const db = firebase.firestore();
 
         function getApiBase() { 
+            // FIXED: Added the 'c' to 'eb-tracker'
             return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-tracker.vercel.app'; 
         }
         const API_BASE = getApiBase();
@@ -1019,9 +1020,11 @@
         }
         
         // ============================================
-        // REPLACED FUNCTION (with 4 file uploads)
+        // COMPLETE JAVASCRIPT UPDATES FOR index.html
+        // Replace the corresponding functions in your index (9).html file
         // ============================================
 
+        // 1. UPDATED showCreateProposalModal - WITH 4 file uploads
         function showCreateProposalModal() {
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
@@ -1299,10 +1302,6 @@
             });
         }
         
-        // ============================================
-        // END OF REPLACED FUNCTION
-        // ============================================
-
         // Add helper function for adding link fields
         function addLinkField() {
             const container = document.getElementById('linksContainer');
@@ -2121,18 +2120,9 @@
                 showLoading();
                 const { success } = await apiCall(`files?id=${fileId}`, { method: 'DELETE' });
                 if (success) {
-                    alert('File deleted successfully!');
-                    // Refresh the current view
-                    if (document.getElementById('fileListContainer')) {
-                        showFileUpload();
-                    } else {
-                        // If in proposal view, close and reopen
-                        const proposalId = new URLSearchParams(window.location.search).get('proposalId');
-                        if (proposalId) {
-                            closeModal();
-                            viewProposal(proposalId);
-                        }
-                    }
+                    alert('File deleted. Please reopen the proposal to see changes.');
+                    closeModal(); // Close the modal to force a refresh
+                    showProposals(); // or showDashboard()
                 }
             } catch(err) { 
                 alert(`Error: ${err.message}`); 
