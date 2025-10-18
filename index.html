@@ -438,19 +438,28 @@
             .service-grid { grid-template-columns: 1fr; }
         }
 
-        /* Inactivity Warning Modal CSS */
-        #inactivityWarning .modal-content {
-            animation: shake 0.5s;
+        /* ADDED: CSS for new file upload areas */
+        .file-upload-group {
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 10px;
+            background: white;
         }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        .file-drop-zone {
+            min-height: 120px;
+            transition: all 0.3s ease;
+            position: relative;
         }
-        #countdown {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--danger);
+        .file-drop-zone:hover {
+            background: var(--light-blue);
+            transform: scale(1.02);
+        }
+        .file-preview {
+            margin-top: 0.5rem;
+        }
+        .upload-area.has-file {
+            background: #f0f9ff;
+            border-color: var(--success);
         }
     </style>
 </head>
@@ -490,9 +499,6 @@
                         </div>
                         <button type="submit" class="btn btn-primary">Login</button>
                     </form>
-                    <div class="form-group" style="text-align: right; margin-top: -0.5rem;">
-                        <a href="#" onclick="showForgotPassword()" style="color: var(--primary-blue); text-decoration: none; font-size: 0.9rem;">Forgot Password?</a>
-                    </div>
                 </div>
                 <div id="registerContent" class="auth-content">
                     <form id="registerForm">
@@ -594,100 +600,6 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // ADDED: Inactivity Timer Logic
-        let inactivityTimer;
-        let lastActivity = Date.now();
-        const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes in milliseconds
-
-        function resetInactivityTimer() {
-            lastActivity = Date.now();
-            clearTimeout(inactivityTimer);
-        
-            if (currentUser) {
-                inactivityTimer = setTimeout(() => {
-                    showInactivityWarning();
-                }, INACTIVITY_TIMEOUT - 60000); // Warn 1 minute before logout
-            }
-        }
-
-        function showInactivityWarning() {
-            const warningModal = `
-                <div class="modal-overlay" id="inactivityWarning">
-                    <div class="modal-content" style="max-width: 400px; text-align: center;">
-                        <h2 style="color: var(--warning);">Session Expiring</h2>
-                        <p>You will be logged out in <span id="countdown">60</span> seconds due to inactivity.</p>
-                        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-                            <button onclick="extendSession()" class="btn btn-primary">Stay Logged In</button>
-                            <button onclick="logout()" class="btn btn-outline">Logout Now</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        
-            document.body.insertAdjacentHTML('beforeend', warningModal);
-        
-            let countdown = 60;
-            const countdownInterval = setInterval(() => {
-                countdown--;
-                const countdownElement = document.getElementById('countdown');
-                if (countdownElement) {
-                    countdownElement.textContent = countdown;
-                }
-        
-                if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    performAutoLogout();
-                }
-            }, 1000);
-        
-            // Store interval ID for cleanup
-            window.logoutCountdownInterval = countdownInterval;
-        }
-
-        function extendSession() {
-            // Clear the countdown interval
-            if (window.logoutCountdownInterval) {
-                clearInterval(window.logoutCountdownInterval);
-            }
-        
-            // Remove warning modal
-            document.getElementById('inactivityWarning')?.remove();
-        
-            // Reset the inactivity timer
-            resetInactivityTimer();
-        }
-        
-        async function performAutoLogout() {
-            // Clear any intervals
-            if (window.logoutCountdownInterval) {
-                clearInterval(window.logoutCountdownInterval);
-            }
-        
-            // Show logout message
-            const logoutMessage = `
-                <div class="modal-overlay">
-                    <div class="modal-content" style="max-width: 400px; text-align: center;">
-                        <h2>Session Expired</h2>
-                        <p>You have been logged out due to inactivity.</p>
-                        <button onclick="location.reload()" class="btn btn-primary">Return to Login</button>
-                    </div>
-                </div>
-            `;
-        
-            document.body.innerHTML = logoutMessage;
-        
-            // Perform logout
-            await auth.signOut();
-        }
-
-        function setupActivityListeners() {
-            const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
-            events.forEach(event => {
-                document.addEventListener(event, resetInactivityTimer, true);
-            });
-        }
-
-
         function getApiBase() { 
             return window.location.hostname.includes('localhost') ? 'http://localhost:3000' : 'https://eb-traker.vercel.app'; 
         }
@@ -753,6 +665,14 @@
         }
         function formatDate(ts) { 
             return (ts && ts.seconds) ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A'; 
+        }
+
+        // ADDED: Helper function to clear selected file
+        window.clearFile = function(index) {
+            const fileInput = document.getElementById(`fileInput${index}`);
+            const preview = document.getElementById(`preview${index}`);
+            fileInput.value = '';
+            preview.innerHTML = '';
         }
 
         // Helper function to get file access indicator
@@ -828,43 +748,6 @@
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
         }
 
-        // ADDED: Forgot Password Function
-        function showForgotPassword() {
-            const modalHtml = `
-                <div class="modal-overlay">
-                    <div class="modal-content" style="max-width: 500px;">
-                        <div class="modal-header">
-                            <h2>Reset Password</h2>
-                            <div class="subtitle">Enter your email to receive reset instructions</div>
-                        </div>
-                        <form id="forgotPasswordForm">
-                            <div class="form-group">
-                                <label>Email Address</label>
-                                <input type="email" id="resetEmail" class="form-control" required>
-                            </div>
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Send Reset Link</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-            document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('resetEmail').value;
-                try {
-                    await auth.sendPasswordResetEmail(email);
-                    alert('Password reset email sent! Please check your inbox.');
-                    closeModal();
-                } catch (error) {
-                    alert('Error: ' + (error.code === 'auth/user-not-found' ? 'Email not found' : error.message));
-                }
-            });
-        }
-
         function showTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
@@ -913,26 +796,16 @@
             }
         }
 
-        // UPDATED: Logout function
         async function logout() { 
-            clearTimeout(inactivityTimer);
-            if (window.logoutCountdownInterval) {
-                clearInterval(window.logoutCountdownInterval);
-            }
             await auth.signOut(); 
         }
         
-        // UPDATED: showApp function
         function showApp() {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('appContainer').style.display = 'block';
             document.getElementById('userWelcome').textContent = `Welcome back, ${currentUser.displayName || currentUser.email}`;
             document.getElementById('userRole').textContent = `${currentUserRole.charAt(0).toUpperCase() + currentUserRole.slice(1)}`;
             
-            // Setup activity monitoring
-            setupActivityListeners();
-            resetInactivityTimer();
-
             // Role-based UI updates
             document.getElementById('newProposalNavItem').style.display = (currentUserRole === 'bdm') ? 'block' : 'none';
             document.getElementById('workflowNavItem').style.display = (['estimator', 'coo'].includes(currentUserRole)) ? 'block' : 'none';
@@ -1126,13 +999,10 @@
         }
         
         // ============================================
-        // COMPLETE JAVASCRIPT UPDATES FOR index.html
-        // Replace the corresponding functions in your index (9).html file
+        // REPLACED FUNCTION
         // ============================================
 
-        // 1. UPDATED showCreateProposalModal - WITH COMMENTS FIELD
         function showCreateProposalModal() {
-            // UPDATED: Added 'Structural Engineering'
             const projectTypes = [
                 'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
                 'Joist Detailing', 'As-built Drawings', 'Structural Engineering'
@@ -1204,17 +1074,56 @@
                             </div>
                             
                             <div class="form-section">
-                                <h4>Upload Project Files (RFQ, Tender Documents, Drawings)</h4>
-                                <div class="upload-area" id="uploadArea">
-                                    <div class="upload-icon">📁</div>
-                                    <p>Click to upload or drag and drop files</p>
-                                    <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 0.5rem;">
-                                        Supported: PDF (up to 100MB), DOCX, XLSX, DWG, Images
-                                        <br>Multiple files allowed
+                                <h4>Upload Project Files (Multiple PDFs Supported)</h4>
+                                
+                                <div id="fileUploadSections">
+                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
+                                        <label style="display: block; margin-bottom: 0.5rem;">File 1:</label>
+                                        <div class="upload-area file-drop-zone" data-input="fileInput1">
+                                            <div class="upload-icon">📄</div>
+                                            <p>Click or drag PDF here</p>
+                                            <input type="file" id="fileInput1" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
+                                            <div class="file-preview" id="preview1"></div>
+                                        </div>
                                     </div>
-                                    <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.dwg,.jpg,.jpeg,.png" style="display: none;">
+                                    
+                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
+                                        <label style="display: block; margin-bottom: 0.5rem;">File 2:</label>
+                                        <div class="upload-area file-drop-zone" data-input="fileInput2">
+                                            <div class="upload-icon">📄</div>
+                                            <p>Click or drag PDF here</p>
+                                            <input type="file" id="fileInput2" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
+                                            <div class="file-preview" id="preview2"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
+                                        <label style="display: block; margin-bottom: 0.5rem;">File 3:</label>
+                                        <div class="upload-area file-drop-zone" data-input="fileInput3">
+                                            <div class="upload-icon">📄</div>
+                                            <p>Click or drag PDF here</p>
+                                            <input type="file" id="fileInput3" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
+                                            <div class="file-preview" id="preview3"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="file-upload-group" style="margin-bottom: 1rem;">
+                                        <label style="display: block; margin-bottom: 0.5rem;">File 4:</label>
+                                        <div class="upload-area file-drop-zone" data-input="fileInput4">
+                                            <div class="upload-icon">📄</div>
+                                            <p>Click or drag PDF here</p>
+                                            <input type="file" id="fileInput4" class="file-input" accept=".pdf,.docx,.xlsx,.dwg" style="display: none;">
+                                            <div class="file-preview" id="preview4"></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div id="filePreview"></div>
+                                
+                                <div class="info-message" style="margin-top: 1rem;">
+                                    <strong>File Guidelines:</strong><br>
+                                    • Max file size: 100MB per file<br>
+                                    • Supported formats: PDF, DOCX, XLSX, DWG<br>
+                                    • You can upload up to 4 files at once
+                                </div>
                             </div>
                             
                             <div class="form-section">
@@ -1239,21 +1148,52 @@
             
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             
-            // Setup file upload
-            const uploadArea = document.getElementById('uploadArea');
-            const fileInput = document.getElementById('fileInput');
-            uploadArea.onclick = () => fileInput.click();
-            
-            let selectedFiles = [];
-
-            fileInput.onchange = function() {
-                selectedFiles = Array.from(this.files);
-                if (selectedFiles.length > 0) {
-                    document.getElementById('filePreview').innerHTML = 
-                        '<h5>Files to Upload:</h5>' + 
-                        selectedFiles.map(f => `<p>📄 ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)</p>`).join('');
-                }
-            };
+            // Setup individual file uploads
+            for (let i = 1; i <= 4; i++) {
+                const dropZone = document.querySelector(`[data-input="fileInput${i}"]`);
+                const fileInput = document.getElementById(`fileInput${i}`);
+                const preview = document.getElementById(`preview${i}`);
+                
+                // Click to upload
+                dropZone.onclick = (e) => {
+                    if (e.target === fileInput) return;
+                    fileInput.click();
+                };
+                
+                // File selection
+                fileInput.onchange = function() {
+                    if (this.files[0]) {
+                        const file = this.files[0];
+                        preview.innerHTML = `
+                            <div style="padding: 0.5rem; background: var(--light-blue); border-radius: 5px; margin-top: 0.5rem;">
+                                <strong>Selected:</strong> ${file.name}<br>
+                                <small>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                                <button type="button" onclick="clearFile(${i})" style="float: right; background: var(--danger); color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer;">Remove</button>
+                            </div>
+                        `;
+                    }
+                };
+                
+                // Drag and drop
+                dropZone.ondragover = (e) => {
+                    e.preventDefault();
+                    dropZone.style.backgroundColor = 'var(--light-blue)';
+                };
+                
+                dropZone.ondragleave = (e) => {
+                    e.preventDefault();
+                    dropZone.style.backgroundColor = '';
+                };
+                
+                dropZone.ondrop = (e) => {
+                    e.preventDefault();
+                    dropZone.style.backgroundColor = '';
+                    if (e.dataTransfer.files[0]) {
+                        fileInput.files = e.dataTransfer.files;
+                        fileInput.dispatchEvent(new Event('change'));
+                    }
+                };
+            }
             
             // Handle form submission
             document.getElementById('createProposalForm').addEventListener('submit', async (e) => {
@@ -1278,7 +1218,7 @@
                     timeline: document.getElementById('timeline').value,
                     priority: document.getElementById('priority').value,
                     scopeOfWork: document.getElementById('scopeOfWork').value,
-                    comments: document.getElementById('proposalComments').value, // NEW: Include comments
+                    comments: document.getElementById('proposalComments').value,
                     projectLinks: projectLinks
                 };
                 
@@ -1294,10 +1234,18 @@
                     if (response.success && response.data) {
                         const proposalId = response.data.id;
                         
-                        // Upload files if any
-                        if (selectedFiles.length > 0) {
+                        // Upload all selected files
+                        const allFiles = [];
+                        for (let i = 1; i <= 4; i++) {
+                            const fileInput = document.getElementById(`fileInput${i}`);
+                            if (fileInput.files[0]) {
+                                allFiles.push(fileInput.files[0]);
+                            }
+                        }
+                        
+                        if (allFiles.length > 0) {
                             const fileFormData = new FormData();
-                            selectedFiles.forEach(file => fileFormData.append('files', file));
+                            allFiles.forEach(file => fileFormData.append('files', file));
                             fileFormData.append('proposalId', proposalId);
                             fileFormData.append('fileType', 'project');
                             
@@ -1319,7 +1267,7 @@
                             });
                         }
                         
-                        alert('Proposal created successfully!');
+                        alert('Proposal created successfully with all files!');
                         closeModal();
                         showProposals();
                     }
@@ -1331,6 +1279,10 @@
             });
         }
         
+        // ============================================
+        // END OF REPLACED FUNCTION
+        // ============================================
+
         // Add helper function for adding link fields
         function addLinkField() {
             const container = document.getElementById('linksContainer');
@@ -1380,10 +1332,9 @@
                     return;
                 }
         
-                // UPDATED: Added 'Structural Engineering'
                 const projectTypes = [
                     'Steel Detailing', 'Miscellaneous Steel', 'Connection Design', 'PE Stamping',
-                    'Joist Detailing', 'As-built Drawings', 'Structural Engineering'
+                    'Joist Detailing', 'As-built Drawings'
                 ];
         
                 const modalHtml = `
@@ -1451,26 +1402,6 @@
                                     <textarea id="editComments" class="form-control" rows="3">${p.comments || ''}</textarea>
                                 </div>
                                 
-                                <div class="form-section">
-                                    <h4>Add Additional Files</h4>
-                                    <div class="upload-area" id="editUploadArea">
-                                        <div class="upload-icon">📎</div>
-                                        <p>Click to add more files</p>
-                                        <input type="file" id="editFileInput" multiple accept=".pdf,.docx,.xlsx,.dwg,.jpg,.jpeg,.png" style="display: none;">
-                                    </div>
-                                    <div id="editFilePreview"></div>
-                                </div>
-                                <div class="form-section">
-                                    <h4>Add Additional Links</h4>
-                                    <div id="editLinksContainer">
-                                        <div class="link-input-group" style="margin-bottom: 1rem;">
-                                            <input type="url" class="form-control" placeholder="Enter URL" style="margin-bottom: 0.5rem;">
-                                            <input type="text" class="form-control" placeholder="Link title/description">
-                                        </div>
-                                    </div>
-                                    <button type="button" onclick="addEditLinkField()" class="btn btn-outline btn-sm" style="width: auto;">+ Add Another Link</button>
-                                </div>
-                                
                                 <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                                     <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
                                     <button type="submit" class="btn btn-primary">Update Proposal</button>
@@ -1482,20 +1413,6 @@
         
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
         
-                // ADDED: Event listeners for edit file upload
-                const editUploadArea = document.getElementById('editUploadArea');
-                const editFileInput = document.getElementById('editFileInput');
-                editUploadArea.onclick = () => editFileInput.click();
-                
-                editFileInput.onchange = function() {
-                    const selectedFiles = Array.from(this.files);
-                    if (selectedFiles.length > 0) {
-                        document.getElementById('editFilePreview').innerHTML = 
-                            '<h5>New Files to Add:</h5>' + 
-                            selectedFiles.map(f => `<p>📄 ${f.name}</p>`).join('');
-                    }
-                };
-                
                 document.getElementById('editProposalForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
         
@@ -1512,32 +1429,6 @@
         
                     try {
                         showLoading();
-
-                        // ADDED: Handle new file and link uploads
-                        const editFiles = document.getElementById('editFileInput').files;
-                        if (editFiles.length > 0) {
-                            const fileFormData = new FormData();
-                            Array.from(editFiles).forEach(file => fileFormData.append('files', file));
-                            fileFormData.append('proposalId', proposalId);
-                            fileFormData.append('fileType', 'project');
-                            await apiCall('files', { method: 'POST', body: fileFormData });
-                        }
-
-                        const editLinkInputs = document.querySelectorAll('#editLinksContainer .link-input-group');
-                        const editLinks = [];
-                        editLinkInputs.forEach(group => {
-                            const url = group.querySelector('input[type="url"]').value;
-                            const title = group.querySelector('input[type="text"]').value;
-                            if (url) editLinks.push({ url, title: title || url, description: title });
-                        });
-                        if (editLinks.length > 0) {
-                            await apiCall('files', {
-                                method: 'POST',
-                                body: JSON.stringify({ links: editLinks, proposalId: proposalId, fileType: 'link' })
-                            });
-                        }
-                        
-                        // Update proposal details
                         const response = await apiCall(`proposals?id=${proposalId}`, {
                             method: 'PUT',
                             body: JSON.stringify({
@@ -1560,19 +1451,6 @@
             });
         }
         
-        // ADDED: Helper function for edit link fields
-        function addEditLinkField() {
-            const container = document.getElementById('editLinksContainer');
-            const newLinkGroup = document.createElement('div');
-            newLinkGroup.className = 'link-input-group';
-            newLinkGroup.style.marginBottom = '1rem';
-            newLinkGroup.innerHTML = `
-                <input type="url" class="form-control" placeholder="Enter URL" style="margin-bottom: 0.5rem;">
-                <input type="text" class="form-control" placeholder="Link title/description">
-            `;
-            container.appendChild(newLinkGroup);
-        }
-
         // 7. UPDATED renderProposalDetailModal - WITH ALL NEW FEATURES
         function renderProposalDetailModal(p, files = []) {
             const projectFiles = files.filter(f => !f.fileType || f.fileType === 'project');
@@ -1724,7 +1602,6 @@
                                     <p><strong>Checking Hours:</strong> ${p.estimation.checkingHours || 0}</p>
                                     <p><strong>Services:</strong> ${p.estimation.services?.join(', ') || 'None selected'}</p>
                                     <p><strong>Quote Type:</strong> ${p.estimation.quoteType || 'Not specified'}</p>
-                                    <p><strong>Quote Number:</strong> ${p.estimation.quoteNumber || 'Not specified'}</p>
                                     <p><strong>Estimated By:</strong> ${p.estimation.estimatedBy}</p>
                                 </div>
                             ` : '<div class="form-section"><h4>Estimation Details</h4><p>Not available</p></div>'}
@@ -1790,15 +1667,15 @@
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
                                     <div class="form-group">
                                         <label>Design Hours</label>
-                                        <input type="number" id="designHours" class="form-control" placeholder="0" value="0">
+                                        <input type="number" id="designHours" class="form-control" placeholder="0" value="0" required>
                                     </div>
                                     <div class="form-group">
                                         <label>Detailing Hours</label>
-                                        <input type="number" id="detailingHours" class="form-control" placeholder="0" value="0">
+                                        <input type="number" id="detailingHours" class="form-control" placeholder="0" value="0" required>
                                     </div>
                                     <div class="form-group">
                                         <label>Checking Hours</label>
-                                        <input type="number" id="checkingHours" class="form-control" placeholder="0" value="0">
+                                        <input type="number" id="checkingHours" class="form-control" placeholder="0" value="0" required>
                                     </div>
                                     <div class="form-group">
                                         <label>Revision Hours</label>
@@ -1867,20 +1744,16 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>Quote Number</label>
-                                    <input type="text" id="quoteNumber" class="form-control" placeholder="Enter quote number">
-                                </div>
-                                <div class="form-group">
                                     <label>Notes</label>
                                     <textarea id="estimationNotes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
                                 </div>
                             </div>
                             <div class="form-section">
-                                <h4>Upload BOQ, Calculation Files & Images</h4>
+                                <h4>Upload BOQ & Calculation Files (Estimator Only)</h4>
                                 <div class="upload-area" id="boqUploadArea" onclick="document.getElementById('boqFileInput').click()">
                                     <div class="upload-icon">📊</div>
-                                    <p>Upload BOQ, MTO, calculation sheets, and reference images</p>
-                                    <input type="file" id="boqFileInput" multiple accept=".xlsx,.xls,.pdf,.dwg,.jpg,.jpeg,.png,.gif" style="display: none;">
+                                    <p>Upload BOQ, MTO, and calculation sheets</p>
+                                    <input type="file" id="boqFileInput" multiple accept=".xlsx,.xls,.pdf,.dwg" style="display: none;">
                                 </div>
                                 <div id="boqFilePreview"></div>
                             </div>
@@ -1930,7 +1803,7 @@
             });
         }
 
-        // 4. UPDATED saveEstimation - WITH TONNAGE & QUOTE NUMBER
+        // 4. UPDATED saveEstimation - WITH TONNAGE
         async function saveEstimation(proposalId) {
             const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(cb => cb.value);
             
@@ -1941,12 +1814,11 @@
             const revisionHours = document.getElementById('revisionHours').value || 0;
             const pmHours = document.getElementById('pmHours').value || 0;
             const totalHours = document.getElementById('totalHours').value || 0;
-            const tonnage = document.getElementById('tonnage').value || 0;
-            const quoteNumber = document.getElementById('quoteNumber').value || ''; // NEW: Get Quote Number
+            const tonnage = document.getElementById('tonnage').value || 0; // NEW: Get tonnage
             
-            // UPDATED: Validation - hours not required if tonnage is entered
-            if (totalHours == 0 && tonnage == 0) {
-                alert('Please enter either manhours or tonnage.');
+            // Validate input
+            if (totalHours == 0) {
+                alert('Please enter manhours before saving.');
                 return;
             }
             
@@ -1962,12 +1834,11 @@
                 revisionHours,
                 pmHours,
                 totalHours,
-                tonnage,
+                tonnage, // NEW: Include tonnage
                 services,
                 quoteType: document.getElementById('quoteType').value,
                 deliveryMethod: document.getElementById('deliveryMethod').value,
-                notes: document.getElementById('estimationNotes')?.value || 'Estimation completed',
-                quoteNumber // NEW: Include Quote Number
+                notes: document.getElementById('estimationNotes')?.value || 'Estimation completed'
             };
             
             try {
@@ -2118,10 +1989,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Quote Number</label>
-                                        <input type="text" id="quoteNumber" class="form-control" placeholder="Enter quote number" value="${estimation.quoteNumber || ''}">
-                                    </div>
                                 </div>
                                 
                                 <div class="form-section">
@@ -2179,8 +2046,7 @@
                 profitMargin: document.getElementById('profitMargin').value,
                 quoteValue: document.getElementById('quoteValue').value,
                 currency: document.getElementById('currency').value,
-                updatedServices: services, // COO can update services
-                quoteNumber: document.getElementById('quoteNumber').value // ADDED: Save edited quote number
+                updatedServices: services // COO can update services
             };
             
             try {
